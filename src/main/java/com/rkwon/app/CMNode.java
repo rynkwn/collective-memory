@@ -2,6 +2,8 @@ package com.rkwon.app;
 
 import nl.pvdberg.pnet.server.*;
 import nl.pvdberg.pnet.server.util.*;
+import nl.pvdberg.pnet.client.*;
+import nl.pvdberg.pnet.client.util.*;
 
 import java.util.*;
 import java.net.*;
@@ -27,7 +29,10 @@ public class CMNode {
 
     public String IPAddress;
     public int port;
+    
+    // Message openings.
     public Server server;
+    public Client client;
 
 
     // IP Address.
@@ -54,8 +59,15 @@ public class CMNode {
         try {
             IPAddress = CMNode.getIP();
             port = CM_PERSONAL_STANDARD_PORT; // TODO: We should try other ports if this one cannot be bound to.
+            
+            // Start server to receive future packets.
+            // TODO: Make sure the server is asynchronous, otherwise we'll have problems!
             server = new PlainServer();
             server.start(port);
+            
+            // Start client to send future packets.
+            // Client is made asynchronous.
+            client = new AsyncClient(new PlainClient());
         } catch(Exception e) {
             System.out.println("CM Node creation failed!");
         }
