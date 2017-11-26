@@ -1,3 +1,8 @@
+package com.rkwon.app;
+
+import nl.pvdberg.pnet.server.*;
+import nl.pvdberg.pnet.server.util.*;
+
 import java.util.*;
 import java.net.*;
 import java.io.*;
@@ -11,6 +16,20 @@ public class CMNode {
 
     public static final int CM_MULTICAST_RECEIVE_PORT = 4768;
 
+
+    public static final int CM_PERSONAL_STANDARD_PORT = 51325; // Basically a random number.
+
+
+    ////////////////////
+    //
+    // Attributes
+    //
+
+    public String IPAddress;
+    public int port;
+    public Server server;
+
+
     // IP Address.
     // Port
     // List of other Nodes (their IP Addresses.)
@@ -20,14 +39,26 @@ public class CMNode {
     //
 
 
+    // NOTES TO SELF:
+    // https://github.com/PvdBerg1998/PNet#creating-a-server
+    // For TCP Connections.
+
+
     // Whether or not this node will welcome new nodes.
     public boolean welcomeNewNodes = true;
 
-    /*
+    /* Perform initial setup and attribute creation.
      *
      */
     public CMNode() {
-	
+        try {
+            IPAddress = CMNode.getIP();
+            port = CM_PERSONAL_STANDARD_PORT; // TODO: We should try other ports if this one cannot be bound to.
+            server = new PlainServer();
+            server.start(port);
+        } catch(Exception e) {
+            System.out.println("CM Node creation failed!");
+        }
     }
 
 
