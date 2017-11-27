@@ -24,6 +24,9 @@ public class CMNode {
 
 	public static final int CM_PERSONAL_STANDARD_PORT = 51325; // Basically a random number.
 	
+	// In ms, how long should we wait after joining for us to have added our local shepherd (if she exists?)
+	public static final long CM_WAIT_TIME_ON_JOIN = 10 * 1000; 
+	
 	////////////////////
 	//
 	// Packet IDs
@@ -44,7 +47,7 @@ public class CMNode {
 	public AsyncClient client;
 
 	// List of other node metadata.
-	public ArrayList<NodeMetadata> shepherdNodes;
+	public ArrayList<NodeMetadata> shepherdNodes = new ArrayList<NodeMetadata>();
 
 	// Whether this node is a shepherd.
 	public boolean isShepherd;
@@ -70,7 +73,7 @@ public class CMNode {
 	public CMNode() {
 		System.out.println("\n\nCreating myself as a CM node...");
 		try {
-			ipAddress = CMNode.getIP();
+			ipAddress = Utility.getIP();
 			System.out.println("My IP Address is: " + ipAddress);
 			
 			port = CM_PERSONAL_STANDARD_PORT; // TODO: We should try other ports
@@ -121,19 +124,19 @@ public class CMNode {
 		byte[] buf = new byte[CM_MULTICAST_BUFFER_SIZE];
 
 		// Insert the keyword to distinguish our traffic from random people.
-		CMNode.stringToBytes(CM_KEYWORD + "-", buf, 0);
+		Utility.stringToBytes(CM_KEYWORD + "-", buf, 0);
 
 		// Determine offset to insert data. We add 1 to account for the "-"
 		int ipDataOffset = CM_KEYWORD_LENGTH + 1;
 
 		try {
 			// Get our IP Address.
-			String myIPAddress = CMNode.getIP();
-			CMNode.stringToBytes(myIPAddress + "-", buf, ipDataOffset);
+			String myIPAddress = Utility.getIP();
+			Utility.stringToBytes(myIPAddress + "-", buf, ipDataOffset);
 
 			// Again, we add 1 to account for the extra "-"
 			int portDataOffset = ipDataOffset + myIPAddress.length() + 1;
-			CMNode.stringToBytes(port + "", buf, portDataOffset);
+			Utility.stringToBytes(port + "", buf, portDataOffset);
 			System.out.println("Final payload format: " + new String(buf));
 
 			// Send the data.
@@ -224,11 +227,59 @@ public class CMNode {
 			e.printStackTrace();
 		}
 	}
+	
+	/*
+	 * Become a shepherd if we pass the shepherd test.
+	 */
+	public void tryToBecomeShepherd() {
+		isShepherd = shepherdTest();
+	}
 
 	////////////////////////////////////////////////////////
 	//
 	// UTILITY METHODS
 	//
+	
+	/*
+	 * Determine whether or not I should become a shepherd!
+	 * 
+	 * We want one shepherd per AS. So given our own IP address
+	 * (such as: 137.165.168.16), we grab the first two "chunks."
+	 * 
+	 * In this case 137.165, and see if any other shepherd nodes
+	 * share that prefix. If any do, we don't become a shepherd.
+	 * If none do. We become a shepherd.
+	 * 
+	 * If I'm a shepherd, and another node in the same AS is a shepherd,
+	 * then the node with the lexicographically smaller IP address resigns.
+	 */
+	public boolean shepherdTest() {
+		System.out.println("\n\nBeginning shepherd test...");
+		
+		String myIpPrefix = Utility.prefixIpAddress(ipAddress);
+		System.out.println("My IP prefix is: " + myIpPrefix);
+		
+		for(NodeMetadata nm : shepherdNodes) {
+			if(nm.sharesPrefix(myIpPrefix)) {
+				
+				if(isShepherd && nm.compareIpAddresses(ipAddress) > 0) {
+					
+					// If I'm already a shepherd, and the other node has a lexicogrpahically
+					// greater IP Address, then I resign.
+					System.out.println("Resigning shepherd status. My IP: " + ipAddress + ", other ip: " + nm.ipAddress);
+					return false;
+					
+				} else {
+					// I don't need to be a shepherd.
+					System.out.println("Not becoming a shepherd. Existing shepherd IP Address: " + nm.ipAddress);
+					return false;
+				}
+			}
+		}
+		
+		System.out.println("I'm becoming a shepherd. Great.");
+		return true;
+	}
 	
 	/* 
 	 * Parse node identifier data and return the parsed data in a way that makes sense.
@@ -267,41 +318,7 @@ public class CMNode {
 		shepherdNodes.add(shepherd);
 	}
 
-	// Taken from:
-	// http://stackoverflow.com/questions/2939218/getting-the-external-ip-address-in-java
-	public static String getIP() throws Exception {
-		URL whatismyip = new URL("http://checkip.amazonaws.com");
-		BufferedReader in = null;
-		try {
-			in = new BufferedReader(new InputStreamReader(
-					whatismyip.openStream()));
-			String ip = in.readLine();
-			return ip;
-		} finally {
-			if (in != null) {
-				try {
-					in.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-		}
-	}
-
-	/*
-	 * Write String in byte representation to a byte array in place.
-	 * 
-	 * If there's insufficient space to store the entire string, we write as
-	 * much as we can.
-	 */
-	public static void stringToBytes(String str, byte[] ar, int startIndex) {
-		byte[] byteRep = str.getBytes();
-
-		for (int strIndex = 0, i = startIndex; i < ar.length
-				&& strIndex < byteRep.length; strIndex++, i++) {
-			ar[i] = byteRep[strIndex];
-		}
-	}
+	
 
 	// //////////////////////////////////////////////////////
 	//
@@ -311,11 +328,28 @@ public class CMNode {
 	public static void main(String[] args) {
 		// Create myself as a CMNode.
 		CMNode me = new CMNode();
+		
 		// Request to join the network.
 		me.join();
 		
-		// Wait some amount of time.
+		// TODO:
+		// Wait some amount of time so we can process join responses and
+		// hopefully process our local shepherd's responses.
+		try {
+			System.out.println("\n\nWaiting for responses...");
+			Thread.sleep(CM_WAIT_TIME_ON_JOIN);
+			System.out.println("\n\nDone waiting for responses...");
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		
 		// See if I should be a shepherd.
+		me.tryToBecomeShepherd();
+		
 		// Then proceed as usual.
+		// If shepherd, should sit around the multicast address.
+		// Then do a lot of other things as well.
+		
+		// If not shepherd, just sit happy and occasionally get lists of available files. Probably.
 	}
 }
