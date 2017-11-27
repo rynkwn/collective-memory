@@ -37,7 +37,7 @@ public class CMNode {
 	//
 
 	public String ipAddress;
-	public int port;
+	public int port; // Note: this is the SERVER's port.
 
 	// Message openings.
 	public Server server;
@@ -68,11 +68,15 @@ public class CMNode {
 	 * Perform initial setup and attribute creation.
 	 */
 	public CMNode() {
+		System.out.println("\n\nCreating myself as a CM node...");
 		try {
 			ipAddress = CMNode.getIP();
+			System.out.println("My IP Address is: " + ipAddress);
+			
 			port = CM_PERSONAL_STANDARD_PORT; // TODO: We should try other ports
 												// if this one cannot be bound
 												// to.
+			System.out.println("My chosen port number is: " + port);
 
 			// Start server to receive future packets.
 			// TODO: Make sure the server is asynchronous, otherwise we'll have
@@ -85,13 +89,15 @@ public class CMNode {
 			
 			server.setListener(new DistributerListener(packetDistributer));
 			server.start(port);
+			System.out.println("Started my server.");
 
 			// Start client to send future packets.
 			// Client is made asynchronous.
 			client = new AsyncClient(new PlainClient());
-			
+			System.out.println("Created my client.");
 			
 			isShepherd = false;
+			System.out.println("I'm not a shepherd.");
 			
 		} catch (Exception e) {
 			System.out.println("CM Node creation failed!");
@@ -111,6 +117,7 @@ public class CMNode {
 	 * delimited by '-'
 	 */
 	public void join() {
+		System.out.println("\n\nStarting join request...");
 		byte[] buf = new byte[CM_MULTICAST_BUFFER_SIZE];
 
 		// Insert the keyword to distinguish our traffic from random people.
@@ -126,9 +133,11 @@ public class CMNode {
 
 			// Again, we add 1 to account for the extra "-"
 			int portDataOffset = ipDataOffset + myIPAddress.length() + 1;
-			// TODO: Include the port we can be reached at.
+			CMNode.stringToBytes(port + "", buf, portDataOffset);
+			System.out.println("Final payload format: " + new String(buf));
 
 			// Send the data.
+			System.out.println("Sending the data to multicast meetup address...");
 			DatagramSocket socket = new DatagramSocket(4445); // Host port
 																// doesn't
 																// matter here.
@@ -138,6 +147,7 @@ public class CMNode {
 					CM_MULTICAST_RECEIVE_PORT);
 			socket.send(packet);
 
+			System.out.println("Packet sent. Closing multicast socket...");
 			socket.close();
 		} catch (Exception e) {
 			System.out.println("We can't join! Error:");
@@ -302,6 +312,8 @@ public class CMNode {
 		// Create myself as a CMNode.
 		CMNode me = new CMNode();
 		// Request to join the network.
+		me.join();
+		
 		// Wait some amount of time.
 		// See if I should be a shepherd.
 		// Then proceed as usual.
