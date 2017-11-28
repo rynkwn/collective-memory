@@ -33,6 +33,7 @@ public class CMNode {
 	//
 	
 	public static final short PACKET_JOIN_REPLY_ID = 1121;
+	public static final short PACKET_PING_REQUEST_ID = 1123;
 
 	////////////////////
 	//
@@ -51,6 +52,7 @@ public class CMNode {
 
 	// Whether this node is a shepherd.
 	public boolean isShepherd;
+	public NodeMetadata myShepherd;
 
 	// IP Address.
 	// Port
@@ -63,9 +65,6 @@ public class CMNode {
 	// NOTES TO SELF:
 	// https://github.com/PvdBerg1998/PNet#creating-a-server
 	// For TCP Connections.
-
-	// Whether or not this node will welcome new nodes.
-	public boolean welcomeNewNodes = true;
 
 	/*
 	 * Perform initial setup and attribute creation.
@@ -100,6 +99,7 @@ public class CMNode {
 			System.out.println("Created my client.");
 			
 			isShepherd = false;
+			myShepherd = null;
 			System.out.println("I'm not a shepherd.");
 			
 		} catch (Exception e) {
@@ -107,7 +107,7 @@ public class CMNode {
 		}
 	}
 
-	// //////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////
 	//
 	// JOIN PHASE
 	//
@@ -156,6 +156,17 @@ public class CMNode {
 			System.out.println("We can't join! Error:");
 			e.printStackTrace();
 		}
+		
+		// TODO:
+		// Wait some amount of time so we can process join responses and
+		// hopefully process our local shepherd's responses.
+		try {
+			System.out.println("\n\nWaiting for responses...");
+			Thread.sleep(CM_WAIT_TIME_ON_JOIN);
+			System.out.println("\n\nDone waiting for responses...");
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 	}
 
 	/*
@@ -189,17 +200,20 @@ public class CMNode {
 	 * Sits at the CM multicast address and responds to node join requests when
 	 * they come in.
 	 */
-	private void receiveNewNodes() {
+	public void receiveNewNodes() {
 		try {
-			MulticastSocket socket = new MulticastSocket(
-					CM_MULTICAST_RECEIVE_PORT);
+			
+			// Automatically sets setReuseAddress to True.
+			MulticastSocket socket = new MulticastSocket();
+			socket.bind(new InetSocketAddress(CM_MULTICAST_RECEIVE_PORT));
+			
 			InetAddress meetupAddress = InetAddress
 					.getByName(CM_MULTICAST_MEETUP_ADDRESS);
 			socket.joinGroup(meetupAddress);
 
 			byte[] buf = new byte[CM_MULTICAST_BUFFER_SIZE];
 
-			while (welcomeNewNodes) {
+			while (isShepherd) {
 				DatagramPacket packet = new DatagramPacket(buf, buf.length);
 				socket.receive(packet);
 				String keyword = new String(packet.getData(), 0,
@@ -221,6 +235,7 @@ public class CMNode {
 			}
 
 			// We're no longer welcoming new nodes.
+			// TODO: Note, may not be called, since shepherd is a life-sentence.
 			socket.leaveGroup(meetupAddress);
 			socket.close();
 		} catch (IOException e) {
@@ -234,6 +249,32 @@ public class CMNode {
 	public void tryToBecomeShepherd() {
 		isShepherd = shepherdTest();
 	}
+	
+	
+	////////////////////////////////////////////////////////
+	//
+	// MONITOR PHASE
+	//
+	
+	/*
+	 * This method is meant to run on a separate thread.
+	 * 
+	 * If we're a shepherd, we wait at the multicast address to welcome new nodes
+	 * and to do intelligent replication of our sheep nodes.
+	 * 
+	 * If we're not a shepherd, we periodically ping the multicast address to 
+	 * see if the shepherd's gone offline (in which case we try to become the shepherd),
+	 * and to let the shepherd know that we exist/acknowledge the shepherd.
+	 */
+	public void monitor() {
+		
+		// We want this method to run on a separate thread.
+		if(isShepherd) {
+			
+		} else {
+			
+		}
+	}
 
 	////////////////////////////////////////////////////////
 	//
@@ -241,7 +282,9 @@ public class CMNode {
 	//
 	
 	/*
-	 * Determine whether or not I should become a shepherd!
+	 * Determine whether or not I should become a shepherd based on 
+	 * the information I have! As a side effect,
+	 * sets the "myShepherd" attribute.
 	 * 
 	 * We want one shepherd per AS. So given our own IP address
 	 * (such as: 137.165.168.16), we grab the first two "chunks."
@@ -267,17 +310,20 @@ public class CMNode {
 					// If I'm already a shepherd, and the other node has a lexicogrpahically
 					// greater IP Address, then I resign.
 					System.out.println("Resigning shepherd status. My IP: " + ipAddress + ", other ip: " + nm.ipAddress);
+					myShepherd = nm;
 					return false;
 					
 				} else {
 					// I don't need to be a shepherd.
 					System.out.println("Not becoming a shepherd. Existing shepherd IP Address: " + nm.ipAddress);
+					myShepherd = nm;
 					return false;
 				}
 			}
 		}
 		
 		System.out.println("I'm becoming a shepherd. Great.");
+		myShepherd = null;
 		return true;
 	}
 	
@@ -317,6 +363,13 @@ public class CMNode {
 		 */
 		shepherdNodes.add(shepherd);
 	}
+	
+	/*
+	 * Forgets about all shepherds we may know about.
+	 */
+	public void clearShepherdKnowledge() {
+		shepherdNodes.clear();
+	}
 
 	
 
@@ -332,17 +385,6 @@ public class CMNode {
 		// Request to join the network.
 		me.join();
 		
-		// TODO:
-		// Wait some amount of time so we can process join responses and
-		// hopefully process our local shepherd's responses.
-		try {
-			System.out.println("\n\nWaiting for responses...");
-			Thread.sleep(CM_WAIT_TIME_ON_JOIN);
-			System.out.println("\n\nDone waiting for responses...");
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-		
 		// See if I should be a shepherd.
 		me.tryToBecomeShepherd();
 		
@@ -352,4 +394,51 @@ public class CMNode {
 		
 		// If not shepherd, just sit happy and occasionally get lists of available files. Probably.
 	}
+}
+
+/*
+ * Monitor performs the monitoring phase of 
+ */
+class Monitor implements Runnable {
+	
+	// Every so often, 
+	public static final long MINIMUM_TIME_BETWEEN_PINGS = 60 * 1000;
+	
+	// The node doing the monitoring.
+	public CMNode node;
+
+	/*
+	 * This method is meant to run on a separate thread.
+	 * 
+	 * If we're a shepherd, we wait at the multicast address to welcome new nodes.
+	 * 
+	 * If we're not a shepherd, we periodically ping our shepherd to see if he/she's gone offline
+	 * (in which case we try to become the shepherd), and to let the shepherd know that we exist/
+	 * acknowledge the shepherd.
+	 */
+	public void run() {
+		while(true) {
+			if(node.isShepherd) {
+				node.receiveNewNodes();
+			} else {
+				
+				while(!node.isShepherd) {
+					// Add a number of milliseconds between 1-10 minutes randomly so we
+					// don't get the chance to all gang up on our shepherd at once.
+					// Also to reduce number of pings in general.
+					long maxNumMillisToDelay = 600 * 1000;
+					Random rand = new Random();
+					long randomAdditionalTime = (long)(rand.nextDouble() * maxNumMillisToDelay);
+					
+					try {
+						Thread.sleep(MINIMUM_TIME_BETWEEN_PINGS + randomAdditionalTime);
+						
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		}
+	}
+	
 }
