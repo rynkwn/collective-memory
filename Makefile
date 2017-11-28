@@ -1,16 +1,34 @@
-JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/
-PATH:=${JAVA_HOME}/bin:${PATH}
+#!/bin/bash
 
-#find Hadoop path using /home/cs-local-linux/339/hadoop-2.7.4/bin/hadoop classpath
+os="`uname`"
 
-SRC = $(wildcard *.java)
+echo Your OS is $os
 
-all: build
+: <<'END'
 
-build: ${SRC}
-	${JAVA_HOME}/bin/javac -Xlint -classpath ${CLASSPATH} ${SRC}
-	#${JAVA_HOME}/bin/jar cvf build.jar *.class lib
+case $os in
+	Linux*)
+		find -name "*.java" > sources.txt
+		find -name "*.target" | tr "\n" ":" > jars.txt
+		;;
+	MINGW32_NT-6.2*)
+		find -name "*.java" > sources.txt
+		find -name "*.target" | tr "\n" ";" > jars.txt
+		;;
+	*)
+		dir /s /B *.java > sources.txt
+		dir /s /B *.jar > jars.txt
+		;;
+esac
 
-clean:
-	rm *~
+javac -cp @sources.txt
+END
 
+echo BEGINNING CLEANING
+echo ___________________________
+mvn clean
+echo
+echo
+echo BEGINNING COMPILING
+echo ___________________________
+mvn compile
