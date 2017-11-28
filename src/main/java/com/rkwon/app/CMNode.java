@@ -202,29 +202,11 @@ public class CMNode {
 	 */
 	public void receiveNewNodes() {
 		try {
-			MulticastSocket socket = new MulticastSocket(21345);
-	        InetAddress address = InetAddress.getByName("230.0.0.1");
-		socket.joinGroup(address);
-
-	        DatagramPacket packet;
-	    
-	            // get a few quotes
-		for (int i = 0; i < 5; i++) {
-
-		    byte[] buf = new byte[256];
-	            packet = new DatagramPacket(buf, buf.length);
-	            socket.receive(packet);
-
-	            String received = new String(packet.getData(), 0, packet.getLength());
-	            System.out.println("Quote of the Moment: " + received);
-		}
-
-		socket.leaveGroup(address);
-		socket.close();
-			/*
+			
 			System.out.println("\n\nBeginning welcoming committee for new nodes...");
 			
 			MulticastSocket socket = new MulticastSocket(CM_MULTICAST_RECEIVE_PORT);
+			socket.setInterface(InetAddress.getByName(ipAddress));
 			System.out.println("Bound multicast socket to " + CM_MULTICAST_RECEIVE_PORT);
 			
 			InetAddress meetupAddress = InetAddress
@@ -239,7 +221,8 @@ public class CMNode {
 			while (isShepherd) {
 				System.out.println("Waiting for join requests.");
 				
-				byte[] buf = new byte[CM_MULTICAST_BUFFER_SIZE];				
+				byte[] buf = new byte[CM_MULTICAST_BUFFER_SIZE];
+				
 				packet = new DatagramPacket(buf, buf.length);
 				socket.receive(packet);
 				
@@ -270,7 +253,6 @@ public class CMNode {
 			// TODO: Note, may not be called, since shepherd is a life-sentence.
 			socket.leaveGroup(meetupAddress);
 			socket.close();
-			*/
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
