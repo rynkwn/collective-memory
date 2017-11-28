@@ -13,12 +13,18 @@ import java.util.*;
 import java.net.*;
 import java.io.*;
 
+import org.jgroups.JChannel;
+import org.jgroups.Message;
+import org.jgroups.ReceiverAdapter;
+
 public class CMNode {
 
 	public static final String CM_KEYWORD = "COLLECTIVE_MEMORY"; // 17 characters/bytes
 	public static final int CM_KEYWORD_LENGTH = CM_KEYWORD.length();
 	public static final String CM_MULTICAST_MEETUP_ADDRESS = "230.0.0.1";
 	public static final int CM_MULTICAST_BUFFER_SIZE = 256;
+	
+	public static final String CM_JGROUP_CLUSTER_NAME = "COLLECTIVE_MEMORY_JGROUP_CLUSTER";
 
 	public static final int CM_MULTICAST_RECEIVE_PORT = 21345;
 
@@ -40,6 +46,7 @@ public class CMNode {
 	// Attributes
 	//
 
+	public JChannel channel;
 	public String ipAddress;
 	public int port; // Note: this is the SERVER's port.
 
@@ -72,6 +79,8 @@ public class CMNode {
 	public CMNode() {
 		System.out.println("\n\nCreating myself as a CM node...");
 		try {
+			channel = new JChannel(); // TODO: Look into configs for this later.
+			
 			ipAddress = Utility.getIP();
 			System.out.println("My IP Address is: " + ipAddress);
 			
@@ -121,37 +130,20 @@ public class CMNode {
 	 */
 	public void join() {
 		System.out.println("\n\nStarting join request...");
-		byte[] buf = new byte[CM_MULTICAST_BUFFER_SIZE];
-
-		// Insert the keyword to distinguish our traffic from random people.
-		Utility.stringToBytes(CM_KEYWORD + "-", buf, 0);
-
-		// Determine offset to insert data. We add 1 to account for the "-"
-		int ipDataOffset = CM_KEYWORD_LENGTH + 1;
 
 		try {
-			// Get our IP Address.
-			String myIPAddress = Utility.getIP();
-			Utility.stringToBytes(myIPAddress + "-", buf, ipDataOffset);
-
-			// Again, we add 1 to account for the extra "-"
-			int portDataOffset = ipDataOffset + myIPAddress.length() + 1;
-			Utility.stringToBytes(port + "", buf, portDataOffset);
-			System.out.println("Final payload format: " + new String(buf));
 
 			// Send the data.
 			System.out.println("Sending the data to multicast meetup address: " + CM_MULTICAST_MEETUP_ADDRESS);
-			DatagramSocket socket = new DatagramSocket(4445); // Host port
-																// doesn't
-																// matter here.
-			InetAddress group = InetAddress
-					.getByName(CM_MULTICAST_MEETUP_ADDRESS);
-			DatagramPacket packet = new DatagramPacket(buf, buf.length, group,
-					CM_MULTICAST_RECEIVE_PORT);
-			socket.send(packet);
+			
+			channel.connect(CM_JGROUP_CLUSTER_NAME);
+			String payload = CM_KEYWORD + "-" + ipAddress + "-" + port;
+			Message msg = new Message(null, payload);
+			channel.send(msg);
 
 			System.out.println("Packet sent. Closing multicast socket...");
-			socket.close();
+			channel.close();
+			
 		} catch (Exception e) {
 			System.out.println("We can't join! Error:");
 			e.printStackTrace();
@@ -201,44 +193,31 @@ public class CMNode {
 	 * they come in.
 	 */
 	public void receiveNewNodes() {
-		try {
 			
-			System.out.println("\n\nBeginning welcoming committee for new nodes...");
-			
-			// TODO: Multicast probably not set up for communication across different routers. At least for IPv4
-			MulticastSocket socket = new MulticastSocket(CM_MULTICAST_RECEIVE_PORT);
-			socket.setInterface(InetAddress.getByName(InetAddress.getLocalHost().getHostName()));
-			System.out.println("Bound multicast socket to " + CM_MULTICAST_RECEIVE_PORT);
-			
-			InetAddress meetupAddress = InetAddress
-					.getByName(CM_MULTICAST_MEETUP_ADDRESS);
-			System.out.println("Going to meetup address: " + CM_MULTICAST_MEETUP_ADDRESS);
-			
-			socket.joinGroup(meetupAddress);
-			System.out.println("Joined multicast group.");
-
-			DatagramPacket packet;
-
-			while (isShepherd) {
-				System.out.println("Waiting for join requests.");
-				
-				byte[] buf = new byte[CM_MULTICAST_BUFFER_SIZE];
-				
-				packet = new DatagramPacket(buf, buf.length);
-				socket.receive(packet);
-				
+		System.out.println("\n\nBeginning welcoming committee for new nodes...");
+		
+		System.out.println("Waiting for join requests.");
+		
+		channel.setReceiver(new ReceiverAdapter(){
+			public void receive(Message msg) {
 				System.out.println("Join request received.");
+				String data = msg.getObject();
 				
-				String keyword = new String(packet.getData(), 0,
-						CM_KEYWORD_LENGTH);
+				// Grab the IP address as part of the message.
+				String senderIpAddress = msg.getSrc().toString();
+				//senderIpAddress = senderIpAddress.substring(senderIpAddress.indexOf(':'));
+				
+				System.out.println("Requester src: " + senderIpAddress);
+				System.out.println("Requester data: " + data);
+				
+				String keyword = data.substring(0, CM_KEYWORD_LENGTH + 1);
 				System.out.println("Keyword in join request is: " + keyword);
 
 				if (keyword.equals(CM_KEYWORD)) {
 
 					// We add 1 to get rid of "CM_KEYWORD-" and capture only
 					// "IP ADDRESS-PORT"
-					String payload = new String(packet.getData(),
-							CM_KEYWORD_LENGTH + 1, packet.getLength());
+					String payload = data.substring(CM_KEYWORD_LENGTH + 1);
 					
 					System.out.println("Parsing out payload as: " + payload);
 
@@ -249,14 +228,8 @@ public class CMNode {
 							Integer.parseInt(joinerData[1]));
 				}
 			}
-
-			// We're no longer welcoming new nodes.
-			// TODO: Note, may not be called, since shepherd is a life-sentence.
-			socket.leaveGroup(meetupAddress);
-			socket.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		});
+			
 	}
 	
 	/*
