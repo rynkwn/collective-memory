@@ -35,40 +35,28 @@
   </dependencies>
   
   
-  <build>
-        <finalName>Collective-Memory</finalName>
-        <resources>
-            <resource>
-                <directory>src/main/resources</directory>
-                <filtering>true</filtering>
-            </resource>
-        </resources>
-
-        <plugins>
-		  <plugin>
-		    <groupId>org.apache.maven.plugins</groupId>
-		    <artifactId>maven-assembly-plugin</artifactId>
-		    <executions>
-		        <execution>
-		            <phase>package</phase>
-		            <goals>
-		                <goal>single</goal>
-		            </goals>
-		            <configuration>
-		                <archive>
-		                <manifest>
-		                    <mainClass>
-		                        com.rkwon.app.CMNode
-		                    </mainClass>
-		                </manifest>
-		                </archive>
-		                <descriptorRefs>
-		                    <descriptorRef>jar-with-dependencies</descriptorRef>
-		                </descriptorRefs>
-		            </configuration>
-		        </execution>
-		    </executions>
-		  </plugin>
-		 </plugins>
-	</build>
+ <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <mainClass>com.rkwon.app.CMNode</mainClass>
+                </transformer>
+              </transformers>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>
