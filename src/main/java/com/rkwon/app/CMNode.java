@@ -140,7 +140,7 @@ public class CMNode {
 			System.out.println("Final payload format: " + new String(buf));
 
 			// Send the data.
-			System.out.println("Sending the data to multicast meetup address...");
+			System.out.println("Sending the data to multicast meetup address: " + CM_MULTICAST_MEETUP_ADDRESS);
 			DatagramSocket socket = new DatagramSocket(4445); // Host port
 																// doesn't
 																// matter here.
@@ -150,23 +150,21 @@ public class CMNode {
 					CM_MULTICAST_RECEIVE_PORT);
 			socket.send(packet);
 
-			System.out.println("Packet sent...");
-			
-			// TODO:
-			// Wait some amount of time so we can process join responses and
-			// hopefully process our local shepherd's responses.
-			try {
-				System.out.println("\n\nWaiting for responses...");
-				Thread.sleep(CM_WAIT_TIME_ON_JOIN);
-				System.out.println("\n\nDone waiting for responses...");
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-			
-			System.out.println("Closing multicast socket...");
+			System.out.println("Packet sent. Closing multicast socket...");
 			socket.close();
 		} catch (Exception e) {
 			System.out.println("We can't join! Error:");
+			e.printStackTrace();
+		}
+		
+		// TODO:
+		// Wait some amount of time so we can process join responses and
+		// hopefully process our local shepherd's responses.
+		try {
+			System.out.println("\n\nWaiting for responses...");
+			Thread.sleep(CM_WAIT_TIME_ON_JOIN);
+			System.out.println("\n\nDone waiting for responses...");
+		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 	}
@@ -217,12 +215,13 @@ public class CMNode {
 			socket.joinGroup(meetupAddress);
 			System.out.println("Joined multicast group.");
 
-			byte[] buf = new byte[CM_MULTICAST_BUFFER_SIZE];
+			DatagramPacket packet;
 
 			while (isShepherd) {
 				System.out.println("Waiting for join requests.");
 				
-				DatagramPacket packet = new DatagramPacket(buf, buf.length);
+				byte[] buf = new byte[CM_MULTICAST_BUFFER_SIZE];				
+				packet = new DatagramPacket(buf, buf.length);
 				socket.receive(packet);
 				
 				System.out.println("Join request received.");
