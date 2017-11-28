@@ -207,7 +207,7 @@ public class CMNode {
 			
 			// TODO: Multicast probably not set up for communication across different routers. At least for IPv4
 			MulticastSocket socket = new MulticastSocket(CM_MULTICAST_RECEIVE_PORT);
-			socket.setInterface(InetAddress.getByName(ipAddress));
+			socket.setInterface(InetAddress.getByName(InetAddress.getLocalHost().getHostName()));
 			System.out.println("Bound multicast socket to " + CM_MULTICAST_RECEIVE_PORT);
 			
 			InetAddress meetupAddress = InetAddress

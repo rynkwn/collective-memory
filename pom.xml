@@ -24,6 +24,14 @@
       <scope>test</scope>
     </dependency>
 
+    <dependency>
+     <groupId>jgroups</groupId>
+     <artifactId>jgroups</artifactId>
+     <scope>system</scope>
+     <version>1.0</version>
+     <systemPath>${basedir}\lib\jgroups-4.0.8.Final.jar</systemPath>
+   </dependency>
+
   </dependencies>
   
   
