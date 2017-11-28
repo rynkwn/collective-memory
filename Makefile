@@ -4,8 +4,6 @@ os="`uname`"
 
 echo Your OS is $os
 
-: <<'END'
-
 case $os in
 	Linux*)
 		find -name "*.java" > sources.txt
