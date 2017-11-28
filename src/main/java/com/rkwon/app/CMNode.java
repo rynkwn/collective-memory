@@ -439,7 +439,7 @@ class Monitor implements Runnable {
 	 * acknowledge the shepherd.
 	 */
 	public void run() {
-		//while(true) {
+		while(true) {
 			if(node.isShepherd) {
 				node.receiveNewNodes();
 			} else {
@@ -462,7 +462,7 @@ class Monitor implements Runnable {
 					}
 				}
 			}
-		//}
+		}
 	}
 	
 }
