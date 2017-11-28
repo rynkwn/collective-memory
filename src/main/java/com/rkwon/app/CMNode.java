@@ -150,21 +150,23 @@ public class CMNode {
 					CM_MULTICAST_RECEIVE_PORT);
 			socket.send(packet);
 
-			System.out.println("Packet sent. Closing multicast socket...");
+			System.out.println("Packet sent...");
+			
+			// TODO:
+			// Wait some amount of time so we can process join responses and
+			// hopefully process our local shepherd's responses.
+			try {
+				System.out.println("\n\nWaiting for responses...");
+				Thread.sleep(CM_WAIT_TIME_ON_JOIN);
+				System.out.println("\n\nDone waiting for responses...");
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			
+			System.out.println("Closing multicast socket...");
 			socket.close();
 		} catch (Exception e) {
 			System.out.println("We can't join! Error:");
-			e.printStackTrace();
-		}
-		
-		// TODO:
-		// Wait some amount of time so we can process join responses and
-		// hopefully process our local shepherd's responses.
-		try {
-			System.out.println("\n\nWaiting for responses...");
-			Thread.sleep(CM_WAIT_TIME_ON_JOIN);
-			System.out.println("\n\nDone waiting for responses...");
-		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 	}
