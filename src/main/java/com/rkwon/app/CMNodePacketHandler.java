@@ -36,13 +36,17 @@ class CMNodeJoinHandler implements PacketHandler {
 	 * Client c is the sender, and presumably a shepherd.
 	 */
 	public void handlePacket(final Packet p, final Client c) throws IOException {
+		System.out.println("\n\nReceiving join reply packet...");
 		PacketReader reader = new PacketReader(p);
 		
 		// Data should be delimited by 
 		String data = reader.readString();
 		HashMap<String, String> parsedData = host.parseNodeIdentifierData(data);
 		
+		System.out.println("Parsed data is: " + parsedData);
+		
 		NodeMetadata newShepherd = new NodeMetadata(parsedData);
 		host.discoverNewShepherd(newShepherd);
+		System.out.println("Added new shepherd.");
 	}
 }

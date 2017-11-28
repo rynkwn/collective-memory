@@ -20,7 +20,7 @@ public class CMNode {
 	public static final String CM_MULTICAST_MEETUP_ADDRESS = "230.0.0.1";
 	public static final int CM_MULTICAST_BUFFER_SIZE = 256;
 
-	public static final int CM_MULTICAST_RECEIVE_PORT = 4768;
+	public static final int CM_MULTICAST_RECEIVE_PORT = 21345;
 
 	public static final int CM_PERSONAL_STANDARD_PORT = 51325; // Basically a random number.
 	
@@ -203,21 +203,31 @@ public class CMNode {
 	public void receiveNewNodes() {
 		try {
 			
-			// Automatically sets setReuseAddress to True.
-			MulticastSocket socket = new MulticastSocket();
-			socket.bind(new InetSocketAddress(CM_MULTICAST_RECEIVE_PORT));
+			System.out.println("\n\nBeginning welcoming committee for new nodes...");
+			
+			MulticastSocket socket = new MulticastSocket(CM_MULTICAST_RECEIVE_PORT);
+			System.out.println("Bound multicast socket to " + CM_MULTICAST_RECEIVE_PORT);
 			
 			InetAddress meetupAddress = InetAddress
 					.getByName(CM_MULTICAST_MEETUP_ADDRESS);
+			System.out.println("Going to meetup address: " + CM_MULTICAST_MEETUP_ADDRESS);
+			
 			socket.joinGroup(meetupAddress);
+			System.out.println("Joined multicast group.");
 
 			byte[] buf = new byte[CM_MULTICAST_BUFFER_SIZE];
 
 			while (isShepherd) {
+				System.out.println("Waiting for join requests.");
+				
 				DatagramPacket packet = new DatagramPacket(buf, buf.length);
 				socket.receive(packet);
+				
+				System.out.println("Join request received.");
+				
 				String keyword = new String(packet.getData(), 0,
 						CM_KEYWORD_LENGTH);
+				System.out.println("Keyword in join request is: " + keyword);
 
 				if (keyword.equals(CM_KEYWORD)) {
 
@@ -225,6 +235,8 @@ public class CMNode {
 					// "IP ADDRESS-PORT"
 					String payload = new String(packet.getData(),
 							CM_KEYWORD_LENGTH + 1, packet.getLength());
+					
+					System.out.println("Parsing out payload as: " + payload);
 
 					// joinerData[0] contains IP Address as string
 					// joinerData[1] contains port number as string.
@@ -393,6 +405,12 @@ public class CMNode {
 		// Then do a lot of other things as well.
 		
 		// If not shepherd, just sit happy and occasionally get lists of available files. Probably.
+		
+		Monitor monitorPhase = new Monitor(me);
+		monitorPhase.run();
+		
+		// Now, start up the normal CLI interface to request files, propose files, and such.
+		System.out.println("\n\nBooting up workhorse...");
 	}
 }
 
@@ -406,6 +424,10 @@ class Monitor implements Runnable {
 	
 	// The node doing the monitoring.
 	public CMNode node;
+	
+	public Monitor(CMNode node) {
+		this.node = node;
+	}
 
 	/*
 	 * This method is meant to run on a separate thread.
@@ -417,7 +439,7 @@ class Monitor implements Runnable {
 	 * acknowledge the shepherd.
 	 */
 	public void run() {
-		while(true) {
+		//while(true) {
 			if(node.isShepherd) {
 				node.receiveNewNodes();
 			} else {
@@ -432,13 +454,15 @@ class Monitor implements Runnable {
 					
 					try {
 						Thread.sleep(MINIMUM_TIME_BETWEEN_PINGS + randomAdditionalTime);
-						
+						// TODO: Now that I'm here, I should ping my shepherd to see if they're
+						// alive and to let them know that I exist!
 					} catch (InterruptedException e) {
 						e.printStackTrace();
+						break;
 					}
 				}
 			}
-		}
+		//}
 	}
 	
 }
