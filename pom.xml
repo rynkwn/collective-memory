@@ -29,7 +29,7 @@
      <artifactId>jgroups</artifactId>
      <scope>system</scope>
      <version>1.0</version>
-     <systemPath>${basedir}\lib\jgroups-4.0.8.Final.jar</systemPath>
+     <systemPath>${basedir}/lib/jgroups-4.0.8.Final.jar</systemPath>
    </dependency>
 
   </dependencies>
