@@ -229,6 +229,9 @@ public class CMNode {
 				}
 			}
 		});
+		
+		// We should be on a separate thread, so we busy wait.
+		while(true);
 			
 	}
 	
