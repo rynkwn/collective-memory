@@ -31,7 +31,10 @@ public class CMNode {
 	public static final int CM_PERSONAL_STANDARD_PORT = 51325; // Basically a random number.
 	
 	// In ms, how long should we wait after joining for us to have added our local shepherd (if she exists?)
-	public static final long CM_WAIT_TIME_ON_JOIN = 10 * 1000; 
+	public static final long CM_WAIT_TIME_ON_JOIN = 10 * 1000;
+	
+	// A list of nodes to try to connect to if we can't find any through our JGroup.
+	public static final String[] CM_HARDCODED_NODES = {};
 	
 	////////////////////
 	//
@@ -46,6 +49,8 @@ public class CMNode {
 	// Attributes
 	//
 
+	// JGROUPS Stuff:
+	// http://www.jgroups.org/tutorial4/index.html#_writing_a_simple_application
 	public JChannel channel;
 	public String ipAddress;
 	public int port; // Note: this is the SERVER's port.
@@ -142,7 +147,7 @@ public class CMNode {
 			channel.send(msg);
 
 			System.out.println("Packet sent. Closing multicast socket...");
-			channel.close();
+			//channel.close();
 			
 		} catch (Exception e) {
 			System.out.println("We can't join! Error:");
@@ -158,6 +163,16 @@ public class CMNode {
 			System.out.println("\n\nDone waiting for responses...");
 		} catch (InterruptedException e) {
 			e.printStackTrace();
+		}
+		
+		// TODO: Handle the case where we're not able to connect to any other nodes via the JGroup cluster.
+		if(noShepherdNodesFound()) {
+			/*
+			 * In this case, we have a hard-coded list of nodes to try to connect to.
+			 * If none of them connect... We're on our own.
+			 */
+			
+			
 		}
 	}
 
@@ -195,7 +210,6 @@ public class CMNode {
 	public void receiveNewNodes() {
 			
 		System.out.println("\n\nBeginning welcoming committee for new nodes...");
-		
 		System.out.println("Waiting for join requests.");
 		
 		channel.setReceiver(new ReceiverAdapter(){
@@ -210,7 +224,7 @@ public class CMNode {
 				System.out.println("Requester src: " + senderIpAddress);
 				System.out.println("Requester data: " + data);
 				
-				String keyword = data.substring(0, CM_KEYWORD_LENGTH + 1);
+				String keyword = data.substring(0, CM_KEYWORD_LENGTH);
 				System.out.println("Keyword in join request is: " + keyword);
 
 				if (keyword.equals(CM_KEYWORD)) {
@@ -229,6 +243,15 @@ public class CMNode {
 				}
 			}
 		});
+		
+		String payload = CM_KEYWORD + "-" + ipAddress + "-" + port;
+		Message msg = new Message(null, payload);
+		try {
+			channel.send(msg);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		
 		// We should be on a separate thread, so we busy wait.
 		while(true);
@@ -361,6 +384,13 @@ public class CMNode {
 	 */
 	public void clearShepherdKnowledge() {
 		shepherdNodes.clear();
+	}
+	
+	/*
+	 * Returns true if we don't find any shepherd nodes.
+	 */
+	public boolean noShepherdNodesFound() {
+		return shepherdNodes.size() == 0;
 	}
 
 	
