@@ -34,13 +34,17 @@ public class CMNode {
 	public static final long CM_WAIT_TIME_ON_JOIN = 10 * 1000;
 	
 	// A list of nodes to try to connect to if we can't find any through our JGroup.
-	public static final String[] CM_HARDCODED_NODES = {};
+	public static final NodeMetadata[] CM_HARDCODED_NODES = {
+		new NodeMetadata("137.165.168.16", 51325), // My IP address while at Williams.
+		new NodeMetadata("137.165.8.105", 51325), // The IP Address of red.cs.williams.edu
+	};
 	
 	////////////////////
 	//
 	// Packet IDs
 	//
 	
+	public static final short PACKET_JOIN_DIRECT_REQUEST_ID = 42;
 	public static final short PACKET_JOIN_REPLY_ID = 1121;
 	public static final short PACKET_PING_REQUEST_ID = 1123;
 
@@ -52,6 +56,7 @@ public class CMNode {
 	// JGROUPS Stuff:
 	// http://www.jgroups.org/tutorial4/index.html#_writing_a_simple_application
 	public JChannel channel;
+	
 	public String ipAddress;
 	public int port; // Note: this is the SERVER's port.
 
@@ -84,7 +89,7 @@ public class CMNode {
 	public CMNode() {
 		System.out.println("\n\nCreating myself as a CM node...");
 		try {
-			channel = new JChannel(); // TODO: Look into configs for this later.
+			channel = new JChannel("res/tcp.xml"); // TODO: Look into configs for this later.
 			
 			ipAddress = Utility.getIP();
 			System.out.println("My IP Address is: " + ipAddress);
@@ -154,7 +159,6 @@ public class CMNode {
 			e.printStackTrace();
 		}
 		
-		// TODO:
 		// Wait some amount of time so we can process join responses and
 		// hopefully process our local shepherd's responses.
 		try {
@@ -165,15 +169,26 @@ public class CMNode {
 			e.printStackTrace();
 		}
 		
-		// TODO: Handle the case where we're not able to connect to any other nodes via the JGroup cluster.
+		// In this case, we weren't able to find any shepherd nodes.
+		// It's possible that the multicast discovery didn't work, so let's
+		// try to manually connect to some hard coded nodes.
+		/*
+		 * In this case, we have a hard-coded list of nodes to try to connect to.
+		 * If none of them connect... We're on our own.
+		 */
+		/*
 		if(noShepherdNodesFound()) {
-			/*
-			 * In this case, we have a hard-coded list of nodes to try to connect to.
-			 * If none of them connect... We're on our own.
-			 */
 			
+			Packet joinRequestPacket = new PacketBuilder(Packet.PacketType.Request)
+											.withID(PACKET_JOIN_DIRECT_REQUEST_ID)
+											.build();
+			
+			for(NodeMetadata nm : CM_HARDCODED_NODES) {
+				
+			}
 			
 		}
+		*/
 	}
 
 	/*
@@ -244,14 +259,16 @@ public class CMNode {
 			}
 		});
 		
+		// TODO: Below is for debugging only. Remove after I get the group thing working.
+		/*
 		String payload = CM_KEYWORD + "-" + ipAddress + "-" + port;
 		Message msg = new Message(null, payload);
 		try {
 			channel.send(msg);
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		*/
 		
 		// We should be on a separate thread, so we busy wait.
 		while(true);

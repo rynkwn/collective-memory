@@ -21,6 +21,38 @@ public class CMNodePacketHandler implements PacketHandler {
 }
 
 /*
+ * Responds to a direct join request.
+ */
+class CMNodeDirectJoinHandler implements PacketHandler {
+	
+	// The host who's receiving the responses.
+	public CMNode host;
+	
+	public CMNodeDirectJoinHandler(CMNode host) {
+		this.host = host;
+	}
+	
+	/*
+	 * Client c is the sender, and presumably a shepherd.
+	 */
+	public void handlePacket(final Packet p, final Client c) throws IOException {
+		System.out.println("\n\nReceiving join reply packet...");
+		PacketReader reader = new PacketReader(p);
+		
+		// Data should be delimited by 
+		String data = reader.readString();
+		HashMap<String, String> parsedData = host.parseNodeIdentifierData(data);
+		
+		System.out.println("Parsed data is: " + parsedData);
+		
+		NodeMetadata newShepherd = new NodeMetadata(parsedData);
+		host.discoverNewShepherd(newShepherd);
+		System.out.println("Added new shepherd.");
+	}
+}
+
+
+/*
  * Receives join responses after sending out our multicast "I'd like to join!" message.
  */
 class CMNodeJoinHandler implements PacketHandler {
