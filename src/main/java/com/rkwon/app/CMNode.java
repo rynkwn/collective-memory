@@ -191,11 +191,15 @@ public class CMNode {
 			
 			for(NodeMetadata nm : CM_HARDCODED_NODES) {
 				
-				// If we successfully connect and send them a joinDirectRequest packet, 
-				// we break.
-				if(send(nm, joinDirectRequestPacket)) {
-					waitingForShepherdResponse = true;
-					break;
+				// Make sure that you can't ask yourself who should be your shepherd.
+				if(! formatNodeIdentifierData().equals(nm.toString())) {
+					
+					// If we successfully connect and send them a joinDirectRequest packet, 
+					// we break.
+					if(send(nm, joinDirectRequestPacket)) {
+						waitingForShepherdResponse = true;
+						break;
+					}
 				}
 			}
 		}
