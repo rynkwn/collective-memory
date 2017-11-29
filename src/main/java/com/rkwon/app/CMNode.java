@@ -45,6 +45,7 @@ public class CMNode {
 	//
 	
 	public static final short PACKET_JOIN_DIRECT_REQUEST_ID = 42;
+	public static final short PACKET_SHEPHERD_SET_REQUEST_ID = 5413;
 	public static final short PACKET_JOIN_REPLY_ID = 1121;
 	public static final short PACKET_PING_REQUEST_ID = 1123;
 
@@ -70,6 +71,9 @@ public class CMNode {
 	// Whether this node is a shepherd.
 	public boolean isShepherd;
 	public NodeMetadata myShepherd;
+	
+	// Special flags
+	public boolean waitingForShepherdResponse = false;
 
 	// IP Address.
 	// Port
@@ -89,7 +93,7 @@ public class CMNode {
 	public CMNode() {
 		System.out.println("\n\nCreating myself as a CM node...");
 		try {
-			channel = new JChannel("res/tcp.xml"); // TODO: Look into configs for this later.
+			channel = new JChannel(); // TODO: Look into configs for this later.
 			
 			ipAddress = Utility.getIP();
 			System.out.println("My IP Address is: " + ipAddress);
@@ -107,6 +111,8 @@ public class CMNode {
 			// Add packet handlers.
 			PacketDistributer packetDistributer = new PacketDistributer();
 			packetDistributer.addHandler(PACKET_JOIN_REPLY_ID, new CMNodeJoinHandler(this));
+			packetDistributer.addHandler(PACKET_JOIN_DIRECT_REQUEST_ID, new CMNodeDirectJoinHandler(this));
+			packetDistributer.addHandler(PACKET_SHEPHERD_SET_REQUEST_ID, new CMNodeSetShepherdHandler(this));
 			
 			server.setListener(new DistributerListener(packetDistributer));
 			server.start(port);
@@ -176,19 +182,23 @@ public class CMNode {
 		 * In this case, we have a hard-coded list of nodes to try to connect to.
 		 * If none of them connect... We're on our own.
 		 */
-		/*
 		if(noShepherdNodesFound()) {
 			
-			Packet joinRequestPacket = new PacketBuilder(Packet.PacketType.Request)
+			Packet joinDirectRequestPacket = new PacketBuilder(Packet.PacketType.Request)
 											.withID(PACKET_JOIN_DIRECT_REQUEST_ID)
+											.withString(formatNodeIdentifierData())
 											.build();
 			
 			for(NodeMetadata nm : CM_HARDCODED_NODES) {
 				
+				// If we successfully connect and send them a joinDirectRequest packet, 
+				// we break.
+				if(send(nm, joinDirectRequestPacket)) {
+					waitingForShepherdResponse = true;
+					break;
+				}
 			}
-			
 		}
-		*/
 	}
 
 	/*
@@ -202,20 +212,8 @@ public class CMNode {
 		
 		// Attempt to connect to the new node.
 		System.out.println("\n\nResponding to join request...");
-		System.out.println("Attempting connection to " + inviteeIPAddress + ":" + port);
-		client.connectAsync(inviteeIPAddress, port, new AsyncListener() {
-			public void onCompletion(final boolean success) {
-				System.out.println("Connection status: " + success);
-			}
-		});
-		
-		// Send that new node my identifying information.
-		System.out.println("Attempting to send my shepherd data...");
-		client.sendAsync(joinAcceptPacket, new AsyncListener() {
-			public void onCompletion(final boolean success) {
-				System.out.println("Send status: " + success);
-			}
-		});
+		NodeMetadata nm = new NodeMetadata(inviteeIPAddress, port);		
+		asyncSend(nm, joinAcceptPacket);
 	}
 
 	/*
@@ -331,6 +329,14 @@ public class CMNode {
 	public boolean shepherdTest() {
 		System.out.println("\n\nBeginning shepherd test...");
 		
+		// If we had to directly connect to a node, and we managed to send a message.
+		// If we wait forever... we should probably restart the node.
+		// TODO: waitingForShepherdResponse is a pretty shaky design decision.
+		if(waitingForShepherdResponse) {
+			System.out.println("I'm waiting for a shepherd response, so I won't become a shepherd.");
+			return false;
+		}
+		
 		String myIpPrefix = Utility.prefixIpAddress(ipAddress);
 		System.out.println("My IP prefix is: " + myIpPrefix);
 		
@@ -359,6 +365,65 @@ public class CMNode {
 		return true;
 	}
 	
+	/*
+	 * If we were waiting for a shepherd response, set our shepherd accordingly.
+	 * 
+	 * If we weren't, we don't do anything.
+	 */
+	public void setShepherd(NodeMetadata proposedShepherd) {
+		if(waitingForShepherdResponse) {
+			waitingForShepherdResponse = false;
+			discoverNewShepherd(proposedShepherd); //TODO: Do I need this?
+			myShepherd = proposedShepherd;
+		}
+	}
+	
+	/*
+	 * Asynchronously send a message to node nm.
+	 */
+	public void asyncSend(NodeMetadata nm, Packet data) {
+		String ipAddress = nm.ipAddress;
+		int port = nm.port;
+		
+		// Connect to the node.
+		System.out.println("Attempting connection to " + ipAddress + ":" + port);
+		client.connectAsync(ipAddress, port, new AsyncListener() {
+			public void onCompletion(final boolean success) {
+				System.out.println("Connection status: " + success);
+			}
+		});
+
+		// Send that node the packet.
+		System.out.println("Attempting to send packet data...");
+		client.sendAsync(data, new AsyncListener() {
+			public void onCompletion(final boolean success) {
+				System.out.println("Send status: " + success);
+			}
+		});
+	}
+	
+	/*
+	 * Synchronously send a message to node nm.
+	 */
+	public boolean send(NodeMetadata nm, Packet data) {
+		String ipAddress = nm.ipAddress;
+		int port = nm.port;
+		
+		// TODO: Find out if this is actually synchronous or not. Given that we have an async client.
+
+		// Connect to the node.
+		System.out.println("Attempting connection to " + ipAddress + ":" + port);
+		boolean connectStatus = client.connect(ipAddress, port);
+		System.out.println("Connect status: " + connectStatus);
+
+		// Send that node the packet.
+		System.out.println("Attempting to send packet data...");
+		boolean sendStatus = client.send(data);
+		System.out.println("Send status: " + sendStatus);
+		
+		return connectStatus && sendStatus;
+	}
+	
 	/* 
 	 * Parse node identifier data and return the parsed data in a way that makes sense.
 	 * This is the reverse method of formatNodeIdentifierData.
@@ -381,6 +446,24 @@ public class CMNode {
 	public String formatNodeIdentifierData() {
     	return ipAddress + "-" + port;
     }
+	
+	/*
+	 * Given a node's metadata, we look in our list of shepherds for a shepherd
+	 * that shares the same IP prefix.
+	 * 
+	 * If we can't find a shepherd, we return our own node metadata and act as interim
+	 * shepherd.
+	 */
+	public NodeMetadata findShepherdForNode(NodeMetadata node) {
+		String nodeIpPrefix = Utility.prefixIpAddress(node.ipAddress);
+		
+		for(NodeMetadata nm : shepherdNodes) {
+			if(Utility.prefixIpAddress(nm.ipAddress).equals(nodeIpPrefix))
+				return nm;
+		}
+		
+		return new NodeMetadata(ipAddress, port);
+	}
 
 	/*
 	 * Adds a new shepherd node to the nodes this node knows about. Only really
