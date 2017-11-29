@@ -375,11 +375,17 @@ public class CMNode {
 	 * If we weren't, we don't do anything.
 	 */
 	public void setShepherd(NodeMetadata proposedShepherd) {
+		System.out.println("\n\nBeginning a set shepherd process for: " + proposedShepherd.toString());
+		System.out.println("If no 'new shepherd set' seen, then set failed.");
 		if(waitingForShepherdResponse) {
 			waitingForShepherdResponse = false;
 			discoverNewShepherd(proposedShepherd); //TODO: Do I need this?
 			myShepherd = proposedShepherd;
+			
+			System.out.println("New shepherd set.");
 		}
+		
+		System.out.println("My shepherd is: " + myShepherd.toString());
 	}
 	
 	/*
