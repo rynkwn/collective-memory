@@ -19,7 +19,7 @@
          thread_pool.keep_alive_time="30000"/>
 
     <TCPPING async_discovery="true"
-             initial_hosts="137.165.168.16[51325],137.165.8.105[51325]"
+             initial_hosts="137.165.168.16[7800],137.165.8.105[7800]"
              port_range="2"/>
     <MERGE3  min_interval="10000"
              max_interval="30000"/>
