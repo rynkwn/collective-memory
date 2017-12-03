@@ -39,6 +39,13 @@ public class CMNode {
 		new NodeMetadata("137.165.8.105", 51325), // The IP Address of red.cs.williams.edu
 	};
 	
+	// Directory location for CM files we're asked to store by our shepherd.
+	public static final String CM_STORAGE_DIRECTORY = System.getProperty("user.home") + File.separator + "collective_memory" + File.separator + "stored"; 
+	
+	// Directory location for user file requests:
+	// We default to where we think their downloads directory should be...
+	public String downloadLocation = System.getProperty("user.home") + File.separator + "Downloads";
+	
 	////////////////////
 	//
 	// Packet IDs
@@ -91,6 +98,10 @@ public class CMNode {
 	 * Perform initial setup and attribute creation.
 	 */
 	public CMNode() {
+		setup();
+	}
+	
+	public void setup() {
 		System.out.println("\n\nCreating myself as a CM node...");
 		try {
 			channel = new JChannel(); // TODO: Look into configs for this later.
@@ -126,6 +137,10 @@ public class CMNode {
 			isShepherd = false;
 			myShepherd = null;
 			System.out.println("I'm not a shepherd.");
+			
+			System.out.println("Setting up storage directory in: " + CM_STORAGE_DIRECTORY);
+			File storageDirs = new File(CM_STORAGE_DIRECTORY);
+			storageDirs.mkdirs();
 			
 		} catch (Exception e) {
 			System.out.println("CM Node creation failed!");
