@@ -51,10 +51,17 @@ public class CMNode {
 	// Packet IDs
 	//
 	
+	// Join packet ids.
 	public static final short PACKET_JOIN_DIRECT_REQUEST_ID = 42;
 	public static final short PACKET_SHEPHERD_SET_REQUEST_ID = 5413;
 	public static final short PACKET_JOIN_REPLY_ID = 1121;
+	
+	// File packet ids.
+	public static final short PACKET_REQUEST_FILE_ID = 28;
+	public static final short PACKET_DOWNLOAD_FILE_ID = 26;
+	
 	public static final short PACKET_PING_REQUEST_ID = 1123;
+	
 
 	////////////////////
 	//
@@ -74,6 +81,11 @@ public class CMNode {
 
 	// List of other node metadata.
 	public ArrayList<NodeMetadata> shepherdNodes = new ArrayList<NodeMetadata>();
+	
+	// List of files this node is storing for the network. 
+	// NOTE, this list does not contain files the node decides to manually GET/download.
+	public ArrayList<FileMetadata> storedFiles = new ArrayList<FileMetadata>();
+	public HashSet<String> requestedFiles = new HashSet<String>();
 
 	// Whether this node is a shepherd.
 	public boolean isShepherd;
@@ -104,7 +116,7 @@ public class CMNode {
 	public void setup() {
 		System.out.println("\n\nCreating myself as a CM node...");
 		try {
-			channel = new JChannel(); // TODO: Look into configs for this later.
+			channel = new JChannel();
 			
 			ipAddress = Utility.getIP();
 			System.out.println("My IP Address is: " + ipAddress);
@@ -434,7 +446,8 @@ public class CMNode {
 		String ipAddress = nm.ipAddress;
 		int port = nm.port;
 		
-		// TODO: Find out if this is actually synchronous or not. Given that we have an async client.
+		// _TODO_: Find out if this is actually synchronous or not. Given that we have an async client.
+		// Seems synchronous.
 
 		// Connect to the node.
 		System.out.println("Attempting connection to " + ipAddress + ":" + port);
@@ -464,6 +477,21 @@ public class CMNode {
 		
 		return parsedData;
 	}
+	
+	/*
+	 * Parse a data string into IP Address, port, and filename. 
+	 * Reverses formatNodeIdentifierDataAndFile()
+	 */
+	public HashMap<String, String> parseNodeIdentifierAndFileNameData(String data) {
+		HashMap<String, String> parsedData = new HashMap<String, String>();
+
+		String[] splitData = data.split("\n");
+		parsedData.put("ipAddress", splitData[0]);
+		parsedData.put("port", splitData[1]);
+		parsedData.put("fileName", splitData[2]);
+		
+		return parsedData;
+	}
 
 	/*
 	 * Produce a string which identifies this node, and how to reach this node.
@@ -471,6 +499,13 @@ public class CMNode {
 	public String formatNodeIdentifierData() {
     	return ipAddress + "-" + port;
     }
+	
+	/*
+	 * Produces a string that identifies this node, and also contains a file name.
+	 */
+	public String formatNodeIdentifierDataAndFile(String fileName) {
+		return ipAddress + "\n" + port + "\n" + fileName;
+	}
 	
 	/*
 	 * Given a node's metadata, we look in our list of shepherds for a shepherd
@@ -518,7 +553,19 @@ public class CMNode {
 		return shepherdNodes.size() == 0;
 	}
 
-	
+	/*
+	 * Given a file name, returns the associated file metadata if we have it.
+	 * If we don't, it returns NULL.
+	 */
+	public FileMetadata getMetadataForFile(String fileName) {
+		for(FileMetadata fm : storedFiles) {
+			if(fm.fileName.equals(fileName)) {
+				return fm;
+			}
+		}
+		
+		return null;
+	}
 
 	// //////////////////////////////////////////////////////
 	//

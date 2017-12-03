@@ -27,6 +27,8 @@ public class CMNodePacketHandler implements PacketHandler {
  */
 class CMNodeDirectJoinHandler implements PacketHandler {
 	
+	public static final short PACKET_ID = CMNode.PACKET_JOIN_DIRECT_REQUEST_ID;
+	
 	// The host who's receiving the responses.
 	public CMNode host;
 	
@@ -65,6 +67,8 @@ class CMNodeDirectJoinHandler implements PacketHandler {
  */
 class CMNodeSetShepherdHandler implements PacketHandler {
 	
+	public static final short PACKET_ID = CMNode.PACKET_SHEPHERD_SET_REQUEST_ID;
+	
 	// The host who's receiving the responses.
 	public CMNode host;
 	
@@ -96,6 +100,8 @@ class CMNodeSetShepherdHandler implements PacketHandler {
  */
 class CMNodeJoinHandler implements PacketHandler {
 	
+	public static final short PACKET_ID = CMNode.PACKET_JOIN_REPLY_ID;
+	
 	// The host who's receiving the responses.
 	public CMNode host;
 	
@@ -119,5 +125,124 @@ class CMNodeJoinHandler implements PacketHandler {
 		NodeMetadata newShepherd = new NodeMetadata(parsedData);
 		host.discoverNewShepherd(newShepherd);
 		System.out.println("Added new shepherd.");
+	}
+}
+
+
+/*
+ * Responds to a file download request.
+ */
+class CMNodeRequestFileHandler implements PacketHandler {
+	
+	public static final short PACKET_ID = CMNode.PACKET_REQUEST_FILE_ID;
+	
+	// The host who's receiving the responses.
+	public CMNode host;
+	
+	public CMNodeRequestFileHandler(CMNode host) {
+		this.host = host;
+	}
+	
+	/*
+	 * Client c is the sender
+	 */
+	public void handlePacket(final Packet p, final Client c) throws IOException {
+		System.out.println("\n\nReceiving file download request...");
+		PacketReader reader = new PacketReader(p);
+		
+		// Data should be delimited by "-"
+		String data = reader.readString();
+		
+		// From the data:
+		// 1) Determine where the file is, and where to send it to (IP Address and Port).
+		// We can solve 2 by making sure that the file we're given is just a filename.
+		
+		// 2) Determine that the file is a file we should share. E.g., in storage.
+		// 3) Convert the file to bytes.
+		// 4) Send the file.
+		HashMap<String, String> parsedData = host.parseNodeIdentifierAndFileNameData(data);
+		
+		System.out.println("Parsed data is: " + parsedData);
+		
+		NodeMetadata requestingNode = new NodeMetadata(parsedData);
+		String fileName = parsedData.get("fileName");
+		
+		System.out.println("Requested file is: " + fileName);
+		
+		// Determine if the file is among the files we should be storing.
+		// TODO: Finish this.
+		
+		FileMetadata fm = host.getMetadataForFile(fileName);
+		boolean success = false;
+		
+		// If we found file metadata for the specified file.
+		if(fm != null) {
+			
+			byte[] fileRepresentation = fm.convertFileToByteArray();
+			if(fileRepresentation != null) {
+				// If we're able to get the byte representation:
+				Packet filePacket = new PacketBuilder(Packet.PacketType.Reply)
+												.withID(CMNode.PACKET_DOWNLOAD_FILE_ID)
+												.withString(fm.fileName)
+												.withBytes(fileRepresentation)
+												.build();
+				
+				host.asyncSend(requestingNode, filePacket);
+				success = true;
+			}
+		}
+		
+		if(!success) {
+			// TODO: Probably send a failure packet? We should probably handle failures in more of these places.
+		}
+	}
+}
+
+/*
+ * Receives a file to download.
+ */
+class CMNodeFileDownloadHandler implements PacketHandler {
+	
+	public static final short PACKET_ID = CMNode.PACKET_DOWNLOAD_FILE_ID;
+	
+	// The host who's receiving the responses.
+	public CMNode host;
+	
+	public CMNodeFileDownloadHandler(CMNode host) {
+		this.host = host;
+	}
+	
+	/*
+	 * Client c is the sender
+	 */
+	public void handlePacket(final Packet p, final Client c) throws IOException {
+		System.out.println("\n\nReceiving file download...");
+		PacketReader reader = new PacketReader(p);
+		
+		// Data should be delimited by "-"
+		String data = reader.readString();
+		
+		// 1) Check that this is a file we requested, or that a shepherd has mandated we hold.
+		// 2) If so, then download into the appropriate place!
+		
+		HashMap<String, String> parsedData = host.parseNodeIdentifierAndFileNameData(data);
+		
+		System.out.println("Parsed data is: " + parsedData);
+		
+		NodeMetadata requestingNode = new NodeMetadata(parsedData);
+		String fileName = parsedData.get("fileName");
+		
+		System.out.println("Requested file is: " + fileName);
+		
+		// Determine if the file is among the files we should be storing.
+		// TODO: Finish this.
+		
+		FileMetadata fm = host.getMetadataForFile(fileName);
+		
+		// If we found file metadata for the specified file.
+		if(fm != null) {
+			// Send that person our file.
+		}
+		
 	}
 }
