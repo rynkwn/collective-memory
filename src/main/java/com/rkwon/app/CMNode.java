@@ -439,6 +439,8 @@ public class CMNode {
 				System.out.println("Send status: " + success);
 			}
 		});
+		
+		client.close();
 	}
 	
 	/*
@@ -461,6 +463,7 @@ public class CMNode {
 		boolean sendStatus = client.send(data);
 		System.out.println("Send status: " + sendStatus);
 		
+		client.close();
 		return connectStatus && sendStatus;
 	}
 	
