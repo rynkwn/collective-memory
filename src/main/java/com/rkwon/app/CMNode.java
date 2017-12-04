@@ -40,11 +40,11 @@ public class CMNode {
 	};
 	
 	// Directory location for CM files we're asked to store by our shepherd.
-	public static final String CM_STORAGE_DIRECTORY = System.getProperty("user.home") + File.separator + "collective_memory" + File.separator + "stored"; 
+	public static final String CM_STORAGE_DIRECTORY = System.getProperty("user.home") + File.separator + "collective_memory" + File.separator + "stored";
 	
-	// Directory location for user file requests:
-	// We default to where we think their downloads directory should be...
-	public String downloadLocation = System.getProperty("user.home") + File.separator + "Downloads";
+	// Directory location for files that have been proposed to us as a shepherd.
+	// If we're not a shepherd, this directory is unused.
+	public static final String CM_PROPOSE_DIRECTORY = System.getProperty("user.home") + File.separator + "collective_memory" + File.separator + "proposed";
 	
 	////////////////////
 	//
@@ -59,6 +59,7 @@ public class CMNode {
 	// File packet ids.
 	public static final short PACKET_REQUEST_FILE_ID = 28;
 	public static final short PACKET_DOWNLOAD_FILE_ID = 26;
+	public static final short PACKET_PROPOSE_FILE_ID = 13; // Unlucky.
 	
 	public static final short PACKET_PING_REQUEST_ID = 1123;
 	
@@ -92,6 +93,10 @@ public class CMNode {
 	// Whether this node is a shepherd.
 	public boolean isShepherd;
 	public NodeMetadata myShepherd;
+	
+	// Directory location for user file requests:
+	// We default to where we think their downloads directory should be...
+	public String downloadLocation = System.getProperty("user.home") + File.separator + "Downloads";
 	
 	// Special flags
 	public boolean waitingForShepherdResponse = false;
