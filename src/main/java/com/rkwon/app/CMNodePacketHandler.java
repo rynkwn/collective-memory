@@ -150,7 +150,7 @@ class CMNodeRequestFileHandler implements PacketHandler {
 	 * Client c is the sender
 	 */
 	public void handlePacket(final Packet p, final Client c) throws IOException {
-		System.out.println("\n\nReceiving file download request...");
+		System.out.println("\n\nReceiving file request...");
 		PacketReader reader = new PacketReader(p);
 		
 		// Data should be delimited by "-"

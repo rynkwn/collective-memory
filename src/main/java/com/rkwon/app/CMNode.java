@@ -138,6 +138,8 @@ public class CMNode {
 			packetDistributer.addHandler(PACKET_JOIN_REPLY_ID, new CMNodeJoinHandler(this));
 			packetDistributer.addHandler(PACKET_JOIN_DIRECT_REQUEST_ID, new CMNodeDirectJoinHandler(this));
 			packetDistributer.addHandler(PACKET_SHEPHERD_SET_REQUEST_ID, new CMNodeSetShepherdHandler(this));
+			packetDistributer.addHandler(PACKET_REQUEST_FILE_ID, new CMNodeRequestFileHandler(this));
+			packetDistributer.addHandler(PACKET_DOWNLOAD_FILE_ID, new CMNodeFileDownloadHandler(this));
 			
 			server.setListener(new DistributerListener(packetDistributer));
 			server.start(port);
