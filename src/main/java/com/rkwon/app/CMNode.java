@@ -595,8 +595,34 @@ public class CMNode {
 		
 		return null;
 	}
+	
+	////////////////////////////////////////////////////////
+	//
+	// PACKET BUILDERS.
+	//
+	
+	/*
+	 * Builds a packet asking for a specific file.
+	 * Contains data on both this node as well as the name of the file being requested.
+	 */
+	public Packet buildFileRequestPacket(String fileName) {
+		return new PacketBuilder(Packet.PacketType.Request)
+								.withID(CMNode.PACKET_REQUEST_FILE_ID)
+								.withString(formatNodeIdentifierDataAndFile(fileName))
+								.build();
+	}
+	
+	/*
+	 * Builds a ping packet. This packet contains this node's identifying data.
+	 */
+	public Packet buildPingPacket() {
+		return new PacketBuilder(Packet.PacketType.Request)
+								.withID(CMNode.PACKET_PING_REQUEST_ID)
+								.withString(formatNodeIdentifierData())
+								.build();
+	}
 
-	// //////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////
 	//
 	// MAIN METHOD
 	//
