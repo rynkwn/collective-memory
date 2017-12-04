@@ -13,33 +13,65 @@ import java.util.*;
 import java.net.*;
 import java.io.*;
 
+import org.jgroups.JChannel;
+import org.jgroups.Message;
+import org.jgroups.ReceiverAdapter;
+
 public class CMNode {
 
 	public static final String CM_KEYWORD = "COLLECTIVE_MEMORY"; // 17 characters/bytes
 	public static final int CM_KEYWORD_LENGTH = CM_KEYWORD.length();
 	public static final String CM_MULTICAST_MEETUP_ADDRESS = "230.0.0.1";
 	public static final int CM_MULTICAST_BUFFER_SIZE = 256;
+	
+	public static final String CM_JGROUP_CLUSTER_NAME = "COLLECTIVE_MEMORY_JGROUP_CLUSTER";
 
 	public static final int CM_MULTICAST_RECEIVE_PORT = 21345;
 
 	public static final int CM_PERSONAL_STANDARD_PORT = 51325; // Basically a random number.
 	
 	// In ms, how long should we wait after joining for us to have added our local shepherd (if she exists?)
-	public static final long CM_WAIT_TIME_ON_JOIN = 10 * 1000; 
+	public static final long CM_WAIT_TIME_ON_JOIN = 10 * 1000;
+	
+	// A list of nodes to try to connect to if we can't find any through our JGroup.
+	public static final NodeMetadata[] CM_HARDCODED_NODES = {
+		new NodeMetadata("137.165.168.16", 51325), // My IP address while at Williams.
+		new NodeMetadata("137.165.8.105", 51325), // The IP Address of red.cs.williams.edu
+	};
+	
+	// Directory location for CM files we're asked to store by our shepherd.
+	public static final String CM_STORAGE_DIRECTORY = System.getProperty("user.home") + File.separator + "collective_memory" + File.separator + "stored"; 
+	
+	// Directory location for user file requests:
+	// We default to where we think their downloads directory should be...
+	public String downloadLocation = System.getProperty("user.home") + File.separator + "Downloads";
 	
 	////////////////////
 	//
 	// Packet IDs
 	//
 	
+	// Join packet ids.
+	public static final short PACKET_JOIN_DIRECT_REQUEST_ID = 42;
+	public static final short PACKET_SHEPHERD_SET_REQUEST_ID = 5413;
 	public static final short PACKET_JOIN_REPLY_ID = 1121;
+	
+	// File packet ids.
+	public static final short PACKET_REQUEST_FILE_ID = 28;
+	public static final short PACKET_DOWNLOAD_FILE_ID = 26;
+	
 	public static final short PACKET_PING_REQUEST_ID = 1123;
+	
 
 	////////////////////
 	//
 	// Attributes
 	//
 
+	// JGROUPS Stuff:
+	// http://www.jgroups.org/tutorial4/index.html#_writing_a_simple_application
+	public JChannel channel;
+	
 	public String ipAddress;
 	public int port; // Note: this is the SERVER's port.
 
@@ -49,10 +81,18 @@ public class CMNode {
 
 	// List of other node metadata.
 	public ArrayList<NodeMetadata> shepherdNodes = new ArrayList<NodeMetadata>();
+	
+	// List of files this node is storing for the network. 
+	// NOTE, this list does not contain files the node decides to manually GET/download.
+	public ArrayList<FileMetadata> storedFiles = new ArrayList<FileMetadata>();
+	public HashSet<String> requestedFiles = new HashSet<String>();
 
 	// Whether this node is a shepherd.
 	public boolean isShepherd;
 	public NodeMetadata myShepherd;
+	
+	// Special flags
+	public boolean waitingForShepherdResponse = false;
 
 	// IP Address.
 	// Port
@@ -70,8 +110,14 @@ public class CMNode {
 	 * Perform initial setup and attribute creation.
 	 */
 	public CMNode() {
+		setup();
+	}
+	
+	public void setup() {
 		System.out.println("\n\nCreating myself as a CM node...");
 		try {
+			channel = new JChannel();
+			
 			ipAddress = Utility.getIP();
 			System.out.println("My IP Address is: " + ipAddress);
 			
@@ -88,6 +134,8 @@ public class CMNode {
 			// Add packet handlers.
 			PacketDistributer packetDistributer = new PacketDistributer();
 			packetDistributer.addHandler(PACKET_JOIN_REPLY_ID, new CMNodeJoinHandler(this));
+			packetDistributer.addHandler(PACKET_JOIN_DIRECT_REQUEST_ID, new CMNodeDirectJoinHandler(this));
+			packetDistributer.addHandler(PACKET_SHEPHERD_SET_REQUEST_ID, new CMNodeSetShepherdHandler(this));
 			
 			server.setListener(new DistributerListener(packetDistributer));
 			server.start(port);
@@ -101,6 +149,10 @@ public class CMNode {
 			isShepherd = false;
 			myShepherd = null;
 			System.out.println("I'm not a shepherd.");
+			
+			System.out.println("Setting up storage directory in: " + CM_STORAGE_DIRECTORY);
+			File storageDirs = new File(CM_STORAGE_DIRECTORY);
+			storageDirs.mkdirs();
 			
 		} catch (Exception e) {
 			System.out.println("CM Node creation failed!");
@@ -121,43 +173,25 @@ public class CMNode {
 	 */
 	public void join() {
 		System.out.println("\n\nStarting join request...");
-		byte[] buf = new byte[CM_MULTICAST_BUFFER_SIZE];
-
-		// Insert the keyword to distinguish our traffic from random people.
-		Utility.stringToBytes(CM_KEYWORD + "-", buf, 0);
-
-		// Determine offset to insert data. We add 1 to account for the "-"
-		int ipDataOffset = CM_KEYWORD_LENGTH + 1;
 
 		try {
-			// Get our IP Address.
-			String myIPAddress = Utility.getIP();
-			Utility.stringToBytes(myIPAddress + "-", buf, ipDataOffset);
-
-			// Again, we add 1 to account for the extra "-"
-			int portDataOffset = ipDataOffset + myIPAddress.length() + 1;
-			Utility.stringToBytes(port + "", buf, portDataOffset);
-			System.out.println("Final payload format: " + new String(buf));
 
 			// Send the data.
 			System.out.println("Sending the data to multicast meetup address: " + CM_MULTICAST_MEETUP_ADDRESS);
-			DatagramSocket socket = new DatagramSocket(4445); // Host port
-																// doesn't
-																// matter here.
-			InetAddress group = InetAddress
-					.getByName(CM_MULTICAST_MEETUP_ADDRESS);
-			DatagramPacket packet = new DatagramPacket(buf, buf.length, group,
-					CM_MULTICAST_RECEIVE_PORT);
-			socket.send(packet);
+			
+			channel.connect(CM_JGROUP_CLUSTER_NAME);
+			String payload = CM_KEYWORD + "-" + ipAddress + "-" + port;
+			Message msg = new Message(null, payload);
+			channel.send(msg);
 
 			System.out.println("Packet sent. Closing multicast socket...");
-			socket.close();
+			//channel.close();
+			
 		} catch (Exception e) {
 			System.out.println("We can't join! Error:");
 			e.printStackTrace();
 		}
 		
-		// TODO:
 		// Wait some amount of time so we can process join responses and
 		// hopefully process our local shepherd's responses.
 		try {
@@ -166,6 +200,35 @@ public class CMNode {
 			System.out.println("\n\nDone waiting for responses...");
 		} catch (InterruptedException e) {
 			e.printStackTrace();
+		}
+		
+		// In this case, we weren't able to find any shepherd nodes.
+		// It's possible that the multicast discovery didn't work, so let's
+		// try to manually connect to some hard coded nodes.
+		/*
+		 * In this case, we have a hard-coded list of nodes to try to connect to.
+		 * If none of them connect... We're on our own.
+		 */
+		if(noShepherdNodesFound()) {
+			
+			Packet joinDirectRequestPacket = new PacketBuilder(Packet.PacketType.Request)
+											.withID(PACKET_JOIN_DIRECT_REQUEST_ID)
+											.withString(formatNodeIdentifierData())
+											.build();
+			
+			for(NodeMetadata nm : CM_HARDCODED_NODES) {
+				
+				// Make sure that you can't ask yourself who should be your shepherd.
+				if(! formatNodeIdentifierData().equals(nm.toString())) {
+					
+					// If we successfully connect and send them a joinDirectRequest packet, 
+					// we break.
+					if(send(nm, joinDirectRequestPacket)) {
+						waitingForShepherdResponse = true;
+						break;
+					}
+				}
+			}
 		}
 	}
 
@@ -180,20 +243,8 @@ public class CMNode {
 		
 		// Attempt to connect to the new node.
 		System.out.println("\n\nResponding to join request...");
-		System.out.println("Attempting connection to " + inviteeIPAddress + ":" + port);
-		client.connectAsync(inviteeIPAddress, port, new AsyncListener() {
-			public void onCompletion(final boolean success) {
-				System.out.println("Connection status: " + success);
-			}
-		});
-		
-		// Send that new node my identifying information.
-		System.out.println("Attempting to send my shepherd data...");
-		client.sendAsync(joinAcceptPacket, new AsyncListener() {
-			public void onCompletion(final boolean success) {
-				System.out.println("Send status: " + success);
-			}
-		});
+		NodeMetadata nm = new NodeMetadata(inviteeIPAddress, port);		
+		asyncSend(nm, joinAcceptPacket);
 	}
 
 	/*
@@ -201,44 +252,30 @@ public class CMNode {
 	 * they come in.
 	 */
 	public void receiveNewNodes() {
-		try {
 			
-			System.out.println("\n\nBeginning welcoming committee for new nodes...");
-			
-			// TODO: Multicast probably not set up for communication across different routers. At least for IPv4
-			MulticastSocket socket = new MulticastSocket(CM_MULTICAST_RECEIVE_PORT);
-			socket.setInterface(InetAddress.getByName(InetAddress.getLocalHost().getHostName()));
-			System.out.println("Bound multicast socket to " + CM_MULTICAST_RECEIVE_PORT);
-			
-			InetAddress meetupAddress = InetAddress
-					.getByName(CM_MULTICAST_MEETUP_ADDRESS);
-			System.out.println("Going to meetup address: " + CM_MULTICAST_MEETUP_ADDRESS);
-			
-			socket.joinGroup(meetupAddress);
-			System.out.println("Joined multicast group.");
-
-			DatagramPacket packet;
-
-			while (isShepherd) {
-				System.out.println("Waiting for join requests.");
-				
-				byte[] buf = new byte[CM_MULTICAST_BUFFER_SIZE];
-				
-				packet = new DatagramPacket(buf, buf.length);
-				socket.receive(packet);
-				
+		System.out.println("\n\nBeginning welcoming committee for new nodes...");
+		System.out.println("Waiting for join requests.");
+		
+		channel.setReceiver(new ReceiverAdapter(){
+			public void receive(Message msg) {
 				System.out.println("Join request received.");
+				String data = msg.getObject();
 				
-				String keyword = new String(packet.getData(), 0,
-						CM_KEYWORD_LENGTH);
+				// Grab the IP address as part of the message.
+				String senderIpAddress = msg.getSrc().toString();
+				//senderIpAddress = senderIpAddress.substring(senderIpAddress.indexOf(':'));
+				
+				System.out.println("Requester src: " + senderIpAddress);
+				System.out.println("Requester data: " + data);
+				
+				String keyword = data.substring(0, CM_KEYWORD_LENGTH);
 				System.out.println("Keyword in join request is: " + keyword);
 
 				if (keyword.equals(CM_KEYWORD)) {
 
 					// We add 1 to get rid of "CM_KEYWORD-" and capture only
 					// "IP ADDRESS-PORT"
-					String payload = new String(packet.getData(),
-							CM_KEYWORD_LENGTH + 1, packet.getLength());
+					String payload = data.substring(CM_KEYWORD_LENGTH + 1);
 					
 					System.out.println("Parsing out payload as: " + payload);
 
@@ -249,14 +286,22 @@ public class CMNode {
 							Integer.parseInt(joinerData[1]));
 				}
 			}
-
-			// We're no longer welcoming new nodes.
-			// TODO: Note, may not be called, since shepherd is a life-sentence.
-			socket.leaveGroup(meetupAddress);
-			socket.close();
-		} catch (IOException e) {
+		});
+		
+		// TODO: Below is for debugging only. Remove after I get the group thing working.
+		/*
+		String payload = CM_KEYWORD + "-" + ipAddress + "-" + port;
+		Message msg = new Message(null, payload);
+		try {
+			channel.send(msg);
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		*/
+		
+		// We should be on a separate thread, so we busy wait.
+		while(true);
+			
 	}
 	
 	/*
@@ -315,6 +360,14 @@ public class CMNode {
 	public boolean shepherdTest() {
 		System.out.println("\n\nBeginning shepherd test...");
 		
+		// If we had to directly connect to a node, and we managed to send a message.
+		// If we wait forever... we should probably restart the node.
+		// TODO: waitingForShepherdResponse is a pretty shaky design decision.
+		if(waitingForShepherdResponse) {
+			System.out.println("I'm waiting for a shepherd response, so I won't become a shepherd.");
+			return false;
+		}
+		
 		String myIpPrefix = Utility.prefixIpAddress(ipAddress);
 		System.out.println("My IP prefix is: " + myIpPrefix);
 		
@@ -343,6 +396,72 @@ public class CMNode {
 		return true;
 	}
 	
+	/*
+	 * If we were waiting for a shepherd response, set our shepherd accordingly.
+	 * 
+	 * If we weren't, we don't do anything.
+	 */
+	public void setShepherd(NodeMetadata proposedShepherd) {
+		System.out.println("\n\nBeginning a set shepherd process for: " + proposedShepherd.toString());
+		System.out.println("If no 'new shepherd set' seen, then set failed.");
+		if(waitingForShepherdResponse) {
+			waitingForShepherdResponse = false;
+			discoverNewShepherd(proposedShepherd); //TODO: Do I need this?
+			myShepherd = proposedShepherd;
+			
+			System.out.println("New shepherd set.");
+		}
+		
+		System.out.println("My shepherd is: " + myShepherd.toString());
+	}
+	
+	/*
+	 * Asynchronously send a message to node nm.
+	 */
+	public void asyncSend(NodeMetadata nm, Packet data) {
+		String ipAddress = nm.ipAddress;
+		int port = nm.port;
+		
+		// Connect to the node.
+		System.out.println("Attempting connection to " + ipAddress + ":" + port);
+		client.connectAsync(ipAddress, port, new AsyncListener() {
+			public void onCompletion(final boolean success) {
+				System.out.println("Connection status: " + success);
+			}
+		});
+
+		// Send that node the packet.
+		System.out.println("Attempting to send packet data...");
+		client.sendAsync(data, new AsyncListener() {
+			public void onCompletion(final boolean success) {
+				System.out.println("Send status: " + success);
+			}
+		});
+	}
+	
+	/*
+	 * Synchronously send a message to node nm.
+	 */
+	public boolean send(NodeMetadata nm, Packet data) {
+		String ipAddress = nm.ipAddress;
+		int port = nm.port;
+		
+		// _TODO_: Find out if this is actually synchronous or not. Given that we have an async client.
+		// Seems synchronous.
+
+		// Connect to the node.
+		System.out.println("Attempting connection to " + ipAddress + ":" + port);
+		boolean connectStatus = client.connect(ipAddress, port);
+		System.out.println("Connect status: " + connectStatus);
+
+		// Send that node the packet.
+		System.out.println("Attempting to send packet data...");
+		boolean sendStatus = client.send(data);
+		System.out.println("Send status: " + sendStatus);
+		
+		return connectStatus && sendStatus;
+	}
+	
 	/* 
 	 * Parse node identifier data and return the parsed data in a way that makes sense.
 	 * This is the reverse method of formatNodeIdentifierData.
@@ -358,6 +477,21 @@ public class CMNode {
 		
 		return parsedData;
 	}
+	
+	/*
+	 * Parse a data string into IP Address, port, and filename. 
+	 * Reverses formatNodeIdentifierDataAndFile()
+	 */
+	public HashMap<String, String> parseNodeIdentifierAndFileNameData(String data) {
+		HashMap<String, String> parsedData = new HashMap<String, String>();
+
+		String[] splitData = data.split("\n");
+		parsedData.put("ipAddress", splitData[0]);
+		parsedData.put("port", splitData[1]);
+		parsedData.put("fileName", splitData[2]);
+		
+		return parsedData;
+	}
 
 	/*
 	 * Produce a string which identifies this node, and how to reach this node.
@@ -365,6 +499,31 @@ public class CMNode {
 	public String formatNodeIdentifierData() {
     	return ipAddress + "-" + port;
     }
+	
+	/*
+	 * Produces a string that identifies this node, and also contains a file name.
+	 */
+	public String formatNodeIdentifierDataAndFile(String fileName) {
+		return ipAddress + "\n" + port + "\n" + fileName;
+	}
+	
+	/*
+	 * Given a node's metadata, we look in our list of shepherds for a shepherd
+	 * that shares the same IP prefix.
+	 * 
+	 * If we can't find a shepherd, we return our own node metadata and act as interim
+	 * shepherd.
+	 */
+	public NodeMetadata findShepherdForNode(NodeMetadata node) {
+		String nodeIpPrefix = Utility.prefixIpAddress(node.ipAddress);
+		
+		for(NodeMetadata nm : shepherdNodes) {
+			if(Utility.prefixIpAddress(nm.ipAddress).equals(nodeIpPrefix))
+				return nm;
+		}
+		
+		return new NodeMetadata(ipAddress, port);
+	}
 
 	/*
 	 * Adds a new shepherd node to the nodes this node knows about. Only really
@@ -386,8 +545,27 @@ public class CMNode {
 	public void clearShepherdKnowledge() {
 		shepherdNodes.clear();
 	}
-
 	
+	/*
+	 * Returns true if we don't find any shepherd nodes.
+	 */
+	public boolean noShepherdNodesFound() {
+		return shepherdNodes.size() == 0;
+	}
+
+	/*
+	 * Given a file name, returns the associated file metadata if we have it.
+	 * If we don't, it returns NULL.
+	 */
+	public FileMetadata getMetadataForFile(String fileName) {
+		for(FileMetadata fm : storedFiles) {
+			if(fm.fileName.equals(fileName)) {
+				return fm;
+			}
+		}
+		
+		return null;
+	}
 
 	// //////////////////////////////////////////////////////
 	//

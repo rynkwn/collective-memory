@@ -85,3 +85,12 @@ local.properties
 .cache-main
 .scala_dependencies
 .worksheet
+
+
+# Paper related residues.
+*.Rnw
+*.log
+*.bcf
+*.run.xml
+*.synctex.gz
+*.tex

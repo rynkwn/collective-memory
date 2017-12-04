@@ -40,4 +40,11 @@ public class NodeMetadata {
 	public int compareIpAddresses(String otherIpAddress) {
 		return ipAddress.compareTo(otherIpAddress);
 	}
+	
+	/*
+	 * Should be the same as CMNode's formatNodeIdentifierData method.
+	 */
+	public String toString() {
+		return ipAddress + "-" + port;
+	}
 }
