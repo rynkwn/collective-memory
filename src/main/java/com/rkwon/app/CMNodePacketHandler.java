@@ -1,6 +1,9 @@
 package com.rkwon.app;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.HashMap;
 
 import nl.pvdberg.pnet.client.Client;
@@ -214,35 +217,41 @@ class CMNodeFileDownloadHandler implements PacketHandler {
 	
 	/*
 	 * Client c is the sender
+	 * 
+	 * 1) Check that this is a file we requested, or that a shepherd has mandated we hold.
+	 * 2) If so, then download into the appropriate place!
 	 */
 	public void handlePacket(final Packet p, final Client c) throws IOException {
 		System.out.println("\n\nReceiving file download...");
 		PacketReader reader = new PacketReader(p);
 		
 		// Data should be delimited by "-"
-		String data = reader.readString();
+		String fileName = reader.readString();
+		byte[] data = reader.readBytes();
 		
-		// 1) Check that this is a file we requested, or that a shepherd has mandated we hold.
-		// 2) If so, then download into the appropriate place!
+		System.out.println("Filename: " + fileName);
+		System.out.println("Checking that this is a file we were expecting...");
+		ExpectedFileMetadata expectedFileData = host.validDownload(fileName);
 		
-		HashMap<String, String> parsedData = host.parseNodeIdentifierAndFileNameData(data);
-		
-		System.out.println("Parsed data is: " + parsedData);
-		
-		NodeMetadata requestingNode = new NodeMetadata(parsedData);
-		String fileName = parsedData.get("fileName");
-		
-		System.out.println("Requested file is: " + fileName);
-		
-		// Determine if the file is among the files we should be storing.
-		// TODO: Finish this.
-		
-		FileMetadata fm = host.getMetadataForFile(fileName);
-		
-		// If we found file metadata for the specified file.
-		if(fm != null) {
-			// Send that person our file.
+		if(expectedFileData != null) {
+			// If this was in fact a file we were expecting.
+			System.out.println("This was a file we were expecting!");
+			
+			if(expectedFileData.shepherdMandated) {
+				// Download into storage.
+				System.out.println("Shepherd mandated download, downloading into " + CMNode.CM_STORAGE_DIRECTORY);
+				Files.write(Paths.get(CMNode.CM_STORAGE_DIRECTORY + File.separator + fileName), data);
+			}
+			
+			if(expectedFileData.personallyWanted) {
+				// Download into target directory.
+				System.out.println("Personally desired download, downloading into " + host.downloadLocation);
+				Files.write(Paths.get(host.downloadLocation + File.separator + fileName), data);
+			}
+			
+			// Remove ExpectedFileData object from host.
+			System.out.println("Removing file from list of expected downloads.");
+			host.removeExpectedFile(fileName);
 		}
-		
 	}
 }
