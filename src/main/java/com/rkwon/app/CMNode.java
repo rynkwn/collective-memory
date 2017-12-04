@@ -116,7 +116,7 @@ public class CMNode {
 	}
 	
 	/*
-	 * Perform initial setup of the node
+	 * Perform initial setup of the node.
 	 */
 	public void setup() {
 		System.out.println("\n\nCreating myself as a CM node...");
