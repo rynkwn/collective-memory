@@ -606,7 +606,7 @@ public class CMNode {
 		Packet fileRequestPacket = buildFileRequestPacket(fileName);
 		
 		System.out.println("Sending packet...");
-		send(nm, fileRequestPacket);
+		asyncSend(nm, fileRequestPacket);
 		System.out.println("Packet sent.");
 	}
 	
