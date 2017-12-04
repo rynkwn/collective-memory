@@ -13,6 +13,7 @@ public class FileMetadata {
 	String fileName;
 	Path filePath;
 	
+	
 	File file;
 	
 	public FileMetadata(String fileName, String filePath) {

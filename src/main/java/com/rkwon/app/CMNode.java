@@ -85,7 +85,9 @@ public class CMNode {
 	// List of files this node is storing for the network. 
 	// NOTE, this list does not contain files the node decides to manually GET/download.
 	public ArrayList<FileMetadata> storedFiles = new ArrayList<FileMetadata>();
-	public HashSet<String> requestedFiles = new HashSet<String>();
+	
+	// The set of files the user's personally requested and expects.
+	public HashMap<String, ExpectedFileMetadata> requestedFiles = new HashMap<String, ExpectedFileMetadata>();
 
 	// Whether this node is a shepherd.
 	public boolean isShepherd;
@@ -460,6 +462,33 @@ public class CMNode {
 		System.out.println("Send status: " + sendStatus);
 		
 		return connectStatus && sendStatus;
+	}
+	
+	/*
+	 * Verifies that a file we're asked to download is one we were expecting.
+	 */
+	public ExpectedFileMetadata validDownload(String fileName) {
+		if(checkFileValidity(fileName) && requestedFiles.containsKey(fileName)) {
+			return requestedFiles.get(fileName);
+		}
+		
+		return null;
+	}
+	
+	
+	/*
+	 * TODO: This method should do a checksum of the file we're supposed to download, 
+	 * to be sure it's actually what we expect.
+	 */
+	public boolean checkFileValidity(String fileName) {
+		return true;
+	}
+	
+	/*
+	 * Removes an ExpectedFileMetadata from our set of expected downloads.
+	 */
+	public void removeExpectedFile(String fileName) {
+		requestedFiles.remove(fileName);
 	}
 	
 	/* 
