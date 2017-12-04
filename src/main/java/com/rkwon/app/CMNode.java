@@ -335,13 +335,9 @@ public class CMNode {
 	 * and to let the shepherd know that we exist/acknowledge the shepherd.
 	 */
 	public void monitor() {
-		
-		// We want this method to run on a separate thread.
-		if(isShepherd) {
-			
-		} else {
-			
-		}
+		Monitor monitorPhase = new Monitor(this);
+		Thread monitorThread = new Thread(monitorPhase);
+		monitorThread.start();
 	}
 
 	////////////////////////////////////////////////////////
@@ -445,6 +441,36 @@ public class CMNode {
 			}
 		});
 		
+		client.close();
+	}
+	
+	/*
+	 * Asynchronously send a list of messages to node nm.
+	 */
+	public void asyncSend(NodeMetadata nm, List<Packet> data) {
+		String ipAddress = nm.ipAddress;
+		int port = nm.port;
+		
+		// Connect to the node.
+		System.out.println("Attempting connection to " + ipAddress + ":" + port);
+		client.connectAsync(ipAddress, port, new AsyncListener() {
+			public void onCompletion(final boolean success) {
+				System.out.println("Connection status: " + success);
+			}
+		});
+
+		// Send that node the packet.
+		int count = 1;
+		for(Packet packet : data) {
+			System.out.println("Attempting to send packet " + count + "...");
+			client.sendAsync(packet, new AsyncListener() {
+				public void onCompletion(final boolean success) {
+					System.out.println("Send status: " + success);
+				}
+			});
+		}
+		
+		System.out.println("Success! Closing.");
 		client.close();
 	}
 	
@@ -690,10 +716,8 @@ public class CMNode {
 		// Then do a lot of other things as well.
 		
 		// If not shepherd, just sit happy and occasionally get lists of available files. Probably.
+		me.monitor();
 		
-		Monitor monitorPhase = new Monitor(me);
-		Thread monitorThread = new Thread(monitorPhase);
-		monitorThread.start();
 		
 		// Now, start up the normal CLI interface to request files, propose files, and such.
 		System.out.println("\n\nBooting up workhorse...");
