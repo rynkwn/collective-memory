@@ -33,6 +33,9 @@ public class CMNode {
 	// In ms, how long should we wait after joining for us to have added our local shepherd (if she exists?)
 	public static final long CM_WAIT_TIME_ON_JOIN = 10 * 1000;
 	
+	// Maximum number of proposed files allowed for a node.
+	public static final int CM_MAXIMUM_PROPOSED_FILES = 10;
+	
 	// A list of nodes to try to connect to if we can't find any through our JGroup.
 	public static final NodeMetadata[] CM_HARDCODED_NODES = {
 		new NodeMetadata("137.165.74.81", 51325), // My IP address while at Williams.
@@ -97,6 +100,10 @@ public class CMNode {
 	public boolean isShepherd;
 	public NodeMetadata myShepherd;
 	
+	// Tracking which nodes have proposed how many files.
+	// NOTE: Key is NodeMetadata.toString().
+	public HashMap<String, Integer> numProposals = new HashMap<String, Integer>();
+	
 	// Directory location for user file requests:
 	// We default to where we think their downloads directory should be...
 	public String downloadLocation = System.getProperty("user.home") + File.separator + "Downloads";
@@ -151,6 +158,7 @@ public class CMNode {
 			packetDistributer.addHandler(PACKET_SHEPHERD_SET_REQUEST_ID, new CMNodeSetShepherdHandler(this));
 			packetDistributer.addHandler(PACKET_REQUEST_FILE_ID, new CMNodeRequestFileHandler(this));
 			packetDistributer.addHandler(PACKET_DOWNLOAD_FILE_ID, new CMNodeFileDownloadHandler(this));
+			packetDistributer.addHandler(PACKET_PROPOSE_FILE_ID, new CMNodeProposalHandler(this));
 			
 			server.setListener(new DistributerListener(packetDistributer));
 			server.start(port);
@@ -424,6 +432,32 @@ public class CMNode {
 		}
 		
 		System.out.println("My shepherd is: " + myShepherd.toString());
+	}
+	
+	/*
+	 * Returns true if nm is allowed to propose.
+	 * 
+	 * Really only useful if this node is a shepherd, and is checking to see if
+	 * it should bother downloading the proposed file for approval.
+	 */
+	public boolean nodeCanPropose(NodeMetadata nm) {
+		if(numProposals.containsKey(nm.toString())) {
+			return numProposals.get(nm.toString()) < CM_MAXIMUM_PROPOSED_FILES;
+		}
+		
+		return true;
+	}
+	
+	/*
+	 * Notes that the specified node nm has proposed a file.
+	 */
+	public void noteNodeHasProposed(NodeMetadata nm) {
+		if(numProposals.containsKey(nm.toString())) {
+			numProposals.put(nm.toString(), 1);
+		} else {
+			int prevProposalNumber = numProposals.get(nm.toString());
+			numProposals.put(nm.toString(), prevProposalNumber + 1);
+		}
 	}
 	
 	/*

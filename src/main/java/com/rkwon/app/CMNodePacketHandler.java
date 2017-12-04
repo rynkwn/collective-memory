@@ -266,14 +266,14 @@ class CMNodeFileDownloadHandler implements PacketHandler {
  * or rejected. Rejected/accepted files are both removed (though accepted files are moved 
  * to the shepherd's Storage directory.)
  */
-class CMNodeHandleProposal implements PacketHandler {
+class CMNodeProposalHandler implements PacketHandler {
 	
 	public static final short PACKET_ID = CMNode.PACKET_PROPOSE_FILE_ID;
 	
 	// The host who's receiving the responses.
 	public CMNode host;
 	
-	public CMNodeHandleProposal(CMNode host) {
+	public CMNodeProposalHandler(CMNode host) {
 		this.host = host;
 	}
 	
@@ -281,6 +281,7 @@ class CMNodeHandleProposal implements PacketHandler {
 	 * Client c is the sender
 	 * 
 	 * 1) Make sure the node hasn't already exceeded his/her proposal limit.
+	 * Also make sure that we're a shepherd.
 	 * 2) If he/she hasn't, increment the number of proposals made by that node
 	 * and download the file.
 	 */
@@ -288,12 +289,21 @@ class CMNodeHandleProposal implements PacketHandler {
 		System.out.println("\n\nReceiving file proposal...");
 		PacketReader reader = new PacketReader(p);
 
-		String data = reader.readString();
-		HashMap<String, String> parsedData = host.parseNodeIdentifierAndFileNameData(data);
+		HashMap<String, String> parsedData = host.parseNodeIdentifierAndFileNameData(reader.readString());
+		byte[] data = reader.readBytes();
 		
 		System.out.println("Parsed data is: " + parsedData);
 		
 		NodeMetadata proposer = new NodeMetadata(parsedData);
-		// TODO: Finish.
+		
+		if(host.isShepherd && host.nodeCanPropose(proposer)) {
+			System.out.println("Valid proposal. Downloading into " + CMNode.CM_PROPOSE_DIRECTORY);
+			
+			host.noteNodeHasProposed(proposer);
+			String fileName = parsedData.get("fileName");
+			Files.write(Paths.get(CMNode.CM_PROPOSE_DIRECTORY + File.separator + fileName), data);
+		} else {
+			System.out.println("Invalid proposal. Ignoring.");
+		}
 	}
 }
