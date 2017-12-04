@@ -13,13 +13,19 @@ public class FileMetadata {
 	String fileName;
 	Path filePath;
 	
-	
 	File file;
 	
 	public FileMetadata(String fileName, String filePath) {
 		this.fileName = fileName;
 		this.filePath = Paths.get(filePath);
 		file = new File(filePath);
+	}
+	
+	/*
+	 * Return whether or not the file claimed by this metadata actually exists.
+	 */
+	public boolean exists() {
+		return file.exists();
 	}
 	
 	/*

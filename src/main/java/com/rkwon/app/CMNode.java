@@ -35,7 +35,7 @@ public class CMNode {
 	
 	// A list of nodes to try to connect to if we can't find any through our JGroup.
 	public static final NodeMetadata[] CM_HARDCODED_NODES = {
-		new NodeMetadata("137.165.168.16", 51325), // My IP address while at Williams.
+		new NodeMetadata("137.165.74.81", 51325), // My IP address while at Williams.
 		new NodeMetadata("137.165.8.105", 51325), // The IP Address of red.cs.williams.edu
 	};
 	
@@ -581,6 +581,39 @@ public class CMNode {
 	public boolean noShepherdNodesFound() {
 		return shepherdNodes.size() == 0;
 	}
+	
+	/*
+	 * Request a file for download from the specified node nm.
+	 */
+	public void requestFile(NodeMetadata nm, String fileName) {
+		System.out.println("\n\nPreparing to request file...");
+		
+		System.out.println("Seeing if this file is something we're already waiting for...");
+		
+		// Update requestedFiles so we accept the download packet once it comes.
+		if(requestedFiles.containsKey(fileName)) {
+			System.out.println("Already waiting for file. Setting a personal request as well.");
+			ExpectedFileMetadata efm = requestedFiles.get(fileName);
+			efm.personallyWanted = true;
+		} else {
+			System.out.println("Recording that we're expecting this file.");
+			ExpectedFileMetadata efm = new ExpectedFileMetadata(fileName, false, true);
+			requestedFiles.put(fileName, efm);
+		}
+		
+		System.out.println("Node we're asking: " + nm.toString());
+		System.out.println("File we're requesting: " + fileName);
+		Packet fileRequestPacket = buildFileRequestPacket(fileName);
+		
+		System.out.println("Sending packet...");
+		send(nm, fileRequestPacket);
+		System.out.println("Packet sent.");
+	}
+	
+	////////////////////////////////////////////////////////
+	//
+	// STORED FILE METHODS
+	//
 
 	/*
 	 * Given a file name, returns the associated file metadata if we have it.
@@ -594,6 +627,13 @@ public class CMNode {
 		}
 		
 		return null;
+	}
+	
+	/*
+	 * Add some file metadata for some file that we have in storage.
+	 */
+	public void addFileMetadataToStorage(FileMetadata fm) {
+		storedFiles.add(fm);
 	}
 	
 	////////////////////////////////////////////////////////
@@ -648,6 +688,19 @@ public class CMNode {
 		
 		// Now, start up the normal CLI interface to request files, propose files, and such.
 		System.out.println("\n\nBooting up workhorse...");
+		
+		// TODO: Code below is strictly for testing.
+		FileMetadata testFile = new FileMetadata("Do Androids Dream of Electric Sheep by Philip Dick.pdf", 
+				"C:\\Users\\Inanity\\collective_memory\\stored\\Do Androids Dream of Electric Sheep by Philip Dick.pdf");
+		
+		if(testFile.exists()) {
+			me.addFileMetadataToStorage(testFile);
+			System.out.println(me.storedFiles);
+		} else {
+			NodeMetadata myComp = CM_HARDCODED_NODES[0];
+			me.requestFile(myComp, "Do Androids Dream of Electric Sheep by Philip Dick.pdf");
+		}
+		
 	}
 }
 
