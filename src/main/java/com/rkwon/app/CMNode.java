@@ -86,7 +86,7 @@ public class CMNode {
 	// NOTE, this list does not contain files the node decides to manually GET/download.
 	public ArrayList<FileMetadata> storedFiles = new ArrayList<FileMetadata>();
 	
-	// The set of files the user's personally requested and expects.
+	// The set of files the user expects to download.
 	public HashMap<String, ExpectedFileMetadata> requestedFiles = new HashMap<String, ExpectedFileMetadata>();
 
 	// Whether this node is a shepherd.
@@ -115,6 +115,9 @@ public class CMNode {
 		setup();
 	}
 	
+	/*
+	 * Perform initial setup of the node
+	 */
 	public void setup() {
 		System.out.println("\n\nCreating myself as a CM node...");
 		try {
