@@ -684,7 +684,8 @@ public class CMNode {
 		// If not shepherd, just sit happy and occasionally get lists of available files. Probably.
 		
 		Monitor monitorPhase = new Monitor(me);
-		monitorPhase.run();
+		Thread monitorThread = new Thread(monitorPhase);
+		monitorThread.start();
 		
 		// Now, start up the normal CLI interface to request files, propose files, and such.
 		System.out.println("\n\nBooting up workhorse...");

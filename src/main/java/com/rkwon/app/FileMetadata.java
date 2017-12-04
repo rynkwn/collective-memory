@@ -48,4 +48,8 @@ public class FileMetadata {
 	public String makeFileName() {
 		return "";
 	}
+	
+	public String toString() {
+		return filePath.toString();
+	}
 }
