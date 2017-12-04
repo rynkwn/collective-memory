@@ -39,12 +39,15 @@ public class CMNode {
 		new NodeMetadata("137.165.8.105", 51325), // The IP Address of red.cs.williams.edu
 	};
 	
+	// The base directory for many of our special collective memory files.
+	public static final String CM_BASE_DIR = System.getProperty("user.home") + File.separator + "collective_memory";
+	
 	// Directory location for CM files we're asked to store by our shepherd.
-	public static final String CM_STORAGE_DIRECTORY = System.getProperty("user.home") + File.separator + "collective_memory" + File.separator + "stored";
+	public static final String CM_STORAGE_DIRECTORY = CM_BASE_DIR + File.separator + "stored";
 	
 	// Directory location for files that have been proposed to us as a shepherd.
 	// If we're not a shepherd, this directory is unused.
-	public static final String CM_PROPOSE_DIRECTORY = System.getProperty("user.home") + File.separator + "collective_memory" + File.separator + "proposed";
+	public static final String CM_PROPOSE_DIRECTORY = CM_BASE_DIR + File.separator + "proposed";
 	
 	////////////////////
 	//
@@ -698,6 +701,18 @@ public class CMNode {
 		return new PacketBuilder(Packet.PacketType.Request)
 								.withID(CMNode.PACKET_PING_REQUEST_ID)
 								.withString(formatNodeIdentifierData())
+								.build();
+	}
+	
+	/*
+	 * Builds a file proposal packet. Contains information identifying the node,
+	 * as well as the file data.
+	 */
+	public Packet buildFileProposalPacket(String fileName, byte[] file) {
+		return new PacketBuilder(Packet.PacketType.Request)
+								.withID(CMNode.PACKET_PROPOSE_FILE_ID)
+								.withString(formatNodeIdentifierDataAndFile(fileName))
+								.withBytes(file)
 								.build();
 	}
 

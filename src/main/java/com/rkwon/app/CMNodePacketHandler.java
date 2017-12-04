@@ -225,7 +225,7 @@ class CMNodeFileDownloadHandler implements PacketHandler {
 		System.out.println("\n\nReceiving file download...");
 		PacketReader reader = new PacketReader(p);
 		
-		// Data should be delimited by "-"
+		// Read off file name.
 		String fileName = reader.readString();
 		byte[] data = reader.readBytes();
 		
@@ -253,5 +253,47 @@ class CMNodeFileDownloadHandler implements PacketHandler {
 			System.out.println("Removing file from list of expected downloads.");
 			host.removeExpectedFile(fileName);
 		}
+	}
+}
+
+/*
+ * Downloads a file proposed by another node for the shepherd to consider.
+ * 
+ * If we see too many proposed files by a node, we reject it automatically
+ * without downloading it.
+ * 
+ * Downloaded files go into the Shepherd's CM_BASE_DIR, where they need to be accepted
+ * or rejected. Rejected/accepted files are both removed (though accepted files are moved 
+ * to the shepherd's Storage directory.)
+ */
+class CMNodeHandleProposal implements PacketHandler {
+	
+	public static final short PACKET_ID = CMNode.PACKET_PROPOSE_FILE_ID;
+	
+	// The host who's receiving the responses.
+	public CMNode host;
+	
+	public CMNodeHandleProposal(CMNode host) {
+		this.host = host;
+	}
+	
+	/*
+	 * Client c is the sender
+	 * 
+	 * 1) Make sure the node hasn't already exceeded his/her proposal limit.
+	 * 2) If he/she hasn't, increment the number of proposals made by that node
+	 * and download the file.
+	 */
+	public void handlePacket(final Packet p, final Client c) throws IOException {
+		System.out.println("\n\nReceiving file proposal...");
+		PacketReader reader = new PacketReader(p);
+
+		String data = reader.readString();
+		HashMap<String, String> parsedData = host.parseNodeIdentifierAndFileNameData(data);
+		
+		System.out.println("Parsed data is: " + parsedData);
+		
+		NodeMetadata proposer = new NodeMetadata(parsedData);
+		// TODO: Finish.
 	}
 }
