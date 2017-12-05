@@ -380,6 +380,8 @@ public class CMNode {
 	
 	public void propose(String fileName, String filePath) {
 		System.out.println("\n\nCreating file proposal...");
+		System.out.println("File name: " + fileName);
+		System.out.println("File path: " + filePath);
 		FileMetadata fm = new FileMetadata(fileName, filePath);
 		
 		if(fm.exists()) {
