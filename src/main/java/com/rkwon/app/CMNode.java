@@ -1027,6 +1027,13 @@ public class CMNode {
 		} else {
 			NodeMetadata myComp = CM_HARDCODED_NODES[0];
 			me.requestFile(myComp, "Do Androids Dream of Electric Sheep by Philip Dick.pdf", false);
+			
+			try {
+				Thread.sleep(5000);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 			me.propose("Do Androids Dream of Electric Sheep by Philip Dick.pdf", me.downloadLocation + File.separator + "Do Androids Dream of Electric Sheep by Philip Dick.pdf");
 		}
 		
