@@ -118,7 +118,7 @@ public class CMNode {
 	// Maps IP Address-port -> node metadata object.
 	public HashMap<String, NodeMetadata> flock = new HashMap<String, NodeMetadata>();
 	
-	// A list of known files for this file.
+	// A list of known files for this node.
 	public ArrayList<String> files = new ArrayList<String>();
 	
 	// A list of network peers for this node. 
@@ -805,6 +805,11 @@ public class CMNode {
 	public String formatPingResponse(int nodeId) {		
 		ArrayList<String> files = new ArrayList<String>();
 		files.addAll(networkFiles.keySet());
+		
+		// Also add in whatever files are stored by this node specifically.
+		for(FileMetadata fm : storedFiles) {
+			files.add(fm.fileName);
+		}
 		
 		ArrayList<String> peers = new ArrayList<String>();
 		peers.addAll(flock.keySet());
