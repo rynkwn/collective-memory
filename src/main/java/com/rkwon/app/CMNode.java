@@ -405,20 +405,24 @@ public class CMNode {
 		for(NodeMetadata nm : shepherdNodes) {
 			if(nm.sharesPrefix(myIpPrefix)) {
 				
-				if(isShepherd && nm.compareIpAddresses(ipAddress) > 0) {
-					
-					// If I'm already a shepherd, and the other node has a lexicogrpahically
-					// greater IP Address, then I resign.
-					System.out.println("Resigning shepherd status. My IP: " + ipAddress + ", other ip: " + nm.ipAddress);
-					myShepherd = nm;
-					return false;
-					
-				} else {
+				if(!isShepherd) {
 					// I don't need to be a shepherd.
 					System.out.println("Not becoming a shepherd. Existing shepherd IP Address: " + nm.ipAddress);
 					myShepherd = nm;
+					asyncSend(myShepherd, buildPingPacket());
 					return false;
-				}
+					
+				} else {
+					// I'm a shepherd, so we need to compare Ip addresses.
+					if(nm.compareIpAddresses(ipAddress) > 0) {
+						// If I'm already a shepherd, and the other node has a lexicogrpahically
+						// greater IP Address, then I resign.
+						System.out.println("Resigning shepherd status. My IP: " + ipAddress + ", other ip: " + nm.ipAddress);
+						myShepherd = nm;
+						asyncSend(myShepherd, buildPingPacket());
+						return false;
+					}
+				}				
 			}
 		}
 		
