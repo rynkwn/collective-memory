@@ -38,7 +38,7 @@ public class CMNode {
 	
 	// A list of nodes to try to connect to if we can't find any through our JGroup.
 	public static final NodeMetadata[] CM_HARDCODED_NODES = {
-		new NodeMetadata("137.165.74.81", 51325), // My IP address while at Williams.
+		new NodeMetadata("137.165.74.28", 51325), // My IP address while at Williams.
 		new NodeMetadata("137.165.8.105", 51325), // The IP Address of red.cs.williams.edu
 	};
 	
@@ -188,6 +188,10 @@ public class CMNode {
 			System.out.println("Setting up storage directory in: " + CM_STORAGE_DIRECTORY);
 			File storageDirs = new File(CM_STORAGE_DIRECTORY);
 			storageDirs.mkdirs();
+			
+			System.out.println("Setting up proposal directory in: " + CM_PROPOSE_DIRECTORY);
+			File proposalDirs = new File(CM_PROPOSE_DIRECTORY);
+			proposalDirs.mkdirs();
 			
 		} catch (Exception e) {
 			System.out.println("CM Node creation failed!");
