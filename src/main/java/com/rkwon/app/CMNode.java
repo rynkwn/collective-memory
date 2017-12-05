@@ -166,11 +166,14 @@ public class CMNode {
 			PacketDistributer packetDistributer = new PacketDistributer();
 			packetDistributer.addHandler(PACKET_JOIN_REPLY_ID, new CMNodeJoinHandler(this));
 			packetDistributer.addHandler(PACKET_JOIN_DIRECT_REQUEST_ID, new CMNodeDirectJoinHandler(this));
+			
 			packetDistributer.addHandler(PACKET_SHEPHERD_SET_REQUEST_ID, new CMNodeSetShepherdHandler(this));
+			
 			packetDistributer.addHandler(PACKET_REQUEST_FILE_ID, new CMNodeRequestFileHandler(this));
 			packetDistributer.addHandler(PACKET_DOWNLOAD_FILE_ID, new CMNodeFileDownloadHandler(this));
 			packetDistributer.addHandler(PACKET_PROPOSE_FILE_ID, new CMNodeProposalHandler(this));
 			packetDistributer.addHandler(PACKET_MANDATE_DOWNLOAD_ID, new CMNodeFileMandateHandler(this));
+			
 			packetDistributer.addHandler(PACKET_PING_REQUEST_ID, new CMNodePingHandler(this));
 			
 			server.setListener(new DistributerListener(packetDistributer));
@@ -284,7 +287,7 @@ public class CMNode {
 		// Attempt to connect to the new node.
 		System.out.println("\n\nResponding to join request...");
 		NodeMetadata nm = new NodeMetadata(inviteeIPAddress, port);		
-		asyncSend(nm, joinAcceptPacket);
+		send(nm, joinAcceptPacket);
 	}
 
 	/*
@@ -526,7 +529,7 @@ public class CMNode {
 	 */
 	public void noteNodeHasProposed(NodeMetadata nm) {
 		System.out.println("Noting node has proposed: " + nm.toString());
-		if(numProposals.containsKey(nm.toString())) {
+		if(!numProposals.containsKey(nm.toString())) {
 			System.out.println("Node has never before proposed.");
 			numProposals.put(nm.toString(), 1);
 		} else {
@@ -534,6 +537,8 @@ public class CMNode {
 			System.out.println("Node has previously proposed this many times: " + prevProposalNumber);
 			numProposals.put(nm.toString(), prevProposalNumber + 1);
 		}
+		
+		System.out.println(numProposals);
 	}
 	
 	/*
@@ -896,7 +901,7 @@ public class CMNode {
 		Packet fileRequestPacket = buildFileRequestPacket(fileName);
 		
 		System.out.println("Sending packet...");
-		asyncSend(nm, fileRequestPacket);
+		send(nm, fileRequestPacket);
 		System.out.println("Packet sent.");
 	}
 	
@@ -1088,7 +1093,7 @@ class Monitor implements Runnable {
 						// Otherwise, we assume our shepherd is dead.
 						long timeToWaitForResponse = 30 * 1000;
 						
-						node.asyncSend(node.myShepherd, node.buildPingPacket());
+						node.send(node.myShepherd, node.buildPingPacket());
 						
 						// Wait for response.
 						Thread.sleep(timeToWaitForResponse);

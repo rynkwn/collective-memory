@@ -61,7 +61,7 @@ class CMNodeDirectJoinHandler implements PacketHandler {
 										.withString(shepherd.toString())
 										.build();
 		
-		host.asyncSend(newNode, setShepherdRequest);
+		host.send(newNode, setShepherdRequest);
 	}
 }
 
@@ -191,7 +191,7 @@ class CMNodeRequestFileHandler implements PacketHandler {
 												.withBytes(fileRepresentation)
 												.build();
 				
-				host.asyncSend(requestingNode, filePacket);
+				host.send(requestingNode, filePacket);
 				success = true;
 			}
 		}
@@ -304,9 +304,11 @@ class CMNodeProposalHandler implements PacketHandler {
 				host.nodeCanPropose(proposer) && 
 				host.checkValidProposal(fileName)) {
 			System.out.println("Valid proposal. Downloading into " + CMNode.CM_PROPOSE_DIRECTORY);
+			String downloadPath = CMNode.CM_PROPOSE_DIRECTORY + File.separator + fileName;
+			System.out.println("Full filepath: " + downloadPath);
 			
 			host.noteNodeHasProposed(proposer);
-			Files.write(Paths.get(CMNode.CM_PROPOSE_DIRECTORY + File.separator + fileName), data);
+			Files.write(Paths.get(downloadPath), data);
 		} else {
 			System.out.println("Invalid proposal. Ignoring.");
 		}
