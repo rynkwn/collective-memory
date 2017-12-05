@@ -367,6 +367,32 @@ public class CMNode {
 		Thread monitorThread = new Thread(monitorPhase);
 		monitorThread.start();
 	}
+	
+	////////////////////////////////////////////////////////
+	//
+	// NODE PROTOCOLS
+	//
+	
+	public void propose(String fileName, String filePath) {
+		System.out.println("\n\nCreating file proposal...");
+		FileMetadata fm = new FileMetadata(fileName, filePath);
+		
+		if(fm.exists()) {
+			System.out.println("File found. Creating byte representation");
+			byte[] file = fm.convertFileToByteArray();
+			
+			if(file != null) {
+				System.out.println("Conversion successful. Preparing to send.");
+				asyncSend(myShepherd, buildFileProposalPacket(fileName, file));
+			} else {
+				System.out.println("Conversion failed.");
+			}
+		} else {
+			System.out.println("File not found. Failed.");
+		}
+	}
+	
+	
 
 	////////////////////////////////////////////////////////
 	//
@@ -965,9 +991,21 @@ public class CMNode {
 		if(testFile.exists()) {
 			me.addFileMetadataToStorage(testFile);
 			System.out.println(me.storedFiles);
+			
+			while(true) {
+				try {
+					Thread.sleep(2000);
+					System.out.println("\n\n\nFlock: \n" + me.flock);
+					System.out.println("\n\nProposers: \n" + me.numProposals);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+			
 		} else {
 			NodeMetadata myComp = CM_HARDCODED_NODES[0];
 			me.requestFile(myComp, "Do Androids Dream of Electric Sheep by Philip Dick.pdf", false);
+			me.propose("Do Androids Dream of Electric Sheep by Philip Dick.pdf", me.downloadLocation + File.separator + "Do Androids Dream of Electric Sheep by Philip Dick.pdf");
 		}
 		
 	}
