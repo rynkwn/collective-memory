@@ -868,12 +868,37 @@ public class CMNode {
 	 * 
 	 * fileNames are the list of files that we're informed live at node.
 	 * 
-	 * added is a boolean flag that indicates whether the node is alive or dead.
+	 * live is a boolean flag that indicates whether the node is alive or dead.
 	 * If it's alive, we update our knowledge accordingly. If it's dead, we look through
 	 * our knowledge and remove that node as a holder of the relevant files. 
 	 */
-	public void updateNetworkFileLocations(NodeMetadata node, List<String> fileNames, boolean added) {
-		// TODO: Finish this.
+	public void updateNetworkFileLocations(NodeMetadata node, List<String> fileNames, boolean live) {
+		String nodeIdentifier = node.toString();
+		
+		for(String fileName : fileNames) {
+			if(live) {
+				// Add this node as a holder of the file.
+				if(networkFiles.containsKey(fileName)) {
+					HashSet<String> holdingNodes = networkFiles.get(fileName);
+					holdingNodes.add(nodeIdentifier);
+				} else {
+					HashSet<String> holdingNodes = new HashSet<String>();
+					holdingNodes.add(nodeIdentifier);
+					networkFiles.put(fileName, holdingNodes);
+				}
+			} else {
+				// This is a dead node, so we remove it from the relevant places.
+				if(networkFiles.containsKey(fileName)) {
+					HashSet<String> holdingNodes = networkFiles.get(fileName);
+					holdingNodes.remove(nodeIdentifier);
+					
+					// TODO: Do we want to do this?
+					if(holdingNodes.size() == 0) {
+						networkFiles.remove(fileName);
+					}
+				} 
+			}
+		}
 	}
 	
 	/*
