@@ -397,7 +397,8 @@ class CMNodePingHandler implements PacketHandler {
 			host.updateFlockMember(node);
 			host.updateNetworkFileLocations(node, fileNames, true);
 			
-			// TODO: Respond to ping.
+			Packet response = host.buildPingResponsePacket(nodeId);
+			host.send(node, response);
 		} else {
 			System.out.println("We're not a shepherd. Ignoring ping!");
 		}
@@ -426,6 +427,23 @@ class CMNodePingResponseHandler implements PacketHandler {
 	public void handlePacket(final Packet p, final Client c) throws IOException {
 		System.out.println("\n\nReceiving ping response...");
 		
+		PacketReader reader = new PacketReader(p);
 		
+		PingResponse response = host.parsePingResponse(reader.readString());
+
+		System.out.println("Verifying that this response has our node id.");
+		if(response.nodeId == host.nodeId) {
+			System.out.println("Verified!");
+			
+			ArrayList<String> files = response.fileNames;
+			ArrayList<String> peers = response.peers;
+			
+			System.out.println("Discovered resources:");
+			System.out.println("Files: " + files);
+			System.out.println("Peers: " + peers);
+			
+			host.files = files;
+			host.peers = peers;
+		}
 	}
 }

@@ -118,6 +118,9 @@ public class CMNode {
 	// Maps IP Address-port -> node metadata object.
 	public HashMap<String, NodeMetadata> flock = new HashMap<String, NodeMetadata>();
 	
+	// A list of known files for this file.
+	public ArrayList<String> files = new ArrayList<String>();
+	
 	// A list of network peers for this node. 
 	public ArrayList<String> peers = new ArrayList<String>();
 	
@@ -165,8 +168,6 @@ public class CMNode {
 			System.out.println("My chosen port number is: " + port);
 
 			// Start server to receive future packets.
-			// TODO: Make sure the server is asynchronous, otherwise we'll have
-			// problems!
 			server = new PlainServer();
 			
 			// Add packet handlers.
@@ -182,6 +183,7 @@ public class CMNode {
 			packetDistributer.addHandler(PACKET_MANDATE_DOWNLOAD_ID, new CMNodeFileMandateHandler(this));
 			
 			packetDistributer.addHandler(PACKET_PING_REQUEST_ID, new CMNodePingHandler(this));
+			packetDistributer.addHandler(PACKET_PING_RESPONSE_ID, new CMNodePingResponseHandler(this));
 			
 			server.setListener(new DistributerListener(packetDistributer));
 			server.start(port);
@@ -1052,6 +1054,21 @@ public class CMNode {
 		return new PacketBuilder(Packet.PacketType.Request)
 								.withID(CMNode.PACKET_MANDATE_DOWNLOAD_ID)
 								.withString(formatFileMandateHeader(fileHolder, fileName, recipientNodeId))
+								.build();
+	}
+	
+	/*
+	 * Builds a ping response packet.
+	 * 
+	 * Contains: 
+	 * nodeId of the initial ping-er, to identify this as an authentic message.
+	 * list of file names in the network.
+	 * list of peers in the network.
+	 */
+	public Packet buildPingResponsePacket(int nodeId) {
+		return new PacketBuilder(Packet.PacketType.Reply)
+								.withID(CMNode.PACKET_PING_RESPONSE_ID)
+								.withString(formatPingResponse(nodeId))
 								.build();
 	}
 
