@@ -49,6 +49,10 @@ public class FileMetadata {
 		return "";
 	}
 	
+	public String getFileName() {
+		return fileName;
+	}
+	
 	public String toString() {
 		return filePath.toString();
 	}

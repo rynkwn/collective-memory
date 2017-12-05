@@ -118,14 +118,10 @@ public class CMNode {
 	
 	// Special flags
 	public boolean waitingForShepherdResponse = false;
-
-	// IP Address.
-	// Port
-	// List of other Nodes (their IP Addresses.)
-	// HashSet of files + file metadata. A "file descriptor ;D ;D ;D" object.
-
-	// Receiving socket (TCP)
-	//
+	
+	// TODO: If ping responses become any more complicated, may be subject to race conditions. Careful. Or add locks.
+	public boolean waitingForPingResponse = true;
+	public boolean receivedPingResponse = false;
 
 	// NOTES TO SELF:
 	// https://github.com/PvdBerg1998/PNet#creating-a-server
@@ -637,6 +633,29 @@ public class CMNode {
 		
 		return parsedData;
 	}
+	
+	/*
+	 * Parse a data string node identifying information, and also a list of file names.
+	 * Reverses formatFileMandateHeader()
+	 */
+	public HashMap<String, Object> parsePing(String data) {
+		HashMap<String, Object> parsedData = new HashMap<String, Object>();
+
+		String[] splitData = data.split("\n");
+		parsedData.put("ipAddress", splitData[0]);
+		parsedData.put("port", splitData[1]);
+		parsedData.put("fileName", splitData[2]);
+		parsedData.put("nodeId", splitData[3]);
+		
+		ArrayList<String> files = new ArrayList<String>();
+		
+		for(int i = 4; i < splitData.length; i++) {
+			files.add(splitData[i]);
+		}
+		
+		parsedData.put("files", files);
+		return parsedData;
+	}
 
 	/*
 	 * Produce a string which identifies this node, and how to reach this node.
@@ -657,6 +676,22 @@ public class CMNode {
 	 */
 	public String formatFileMandateHeader(NodeMetadata nm, String fileName, int nodeId) {
 		return nm.ipAddress + "\n" + nm.port + "\n" + fileName + "\n" + nodeId;
+	}
+	
+	/*
+	 * Formats data we intend to put into a ping.
+	 */
+	public String formatPing() {
+		StringBuilder sb = new StringBuilder();
+		sb.append(ipAddress + "\n");
+		sb.append(port + "\n");
+		sb.append(nodeId + "\n");
+		
+		for(FileMetadata fm : storedFiles) {
+			sb.append(fm.getFileName() + "\n");
+		}
+		
+		return sb.toString();
 	}
 	
 	/*
@@ -782,7 +817,7 @@ public class CMNode {
 	public Packet buildPingPacket() {
 		return new PacketBuilder(Packet.PacketType.Request)
 								.withID(CMNode.PACKET_PING_REQUEST_ID)
-								.withString(formatNodeIdentifierData())
+								.withString(formatPing())
 								.build();
 	}
 	
@@ -862,6 +897,7 @@ class Monitor implements Runnable {
 	
 	// Every so often, 
 	public static final long MINIMUM_TIME_BETWEEN_PINGS = 60 * 1000;
+	public static final long MAXIMUM_ADDED_TIME_BETWEEN_PINGS = 300 * 1000;
 	
 	// The node doing the monitoring.
 	public CMNode node;
@@ -880,23 +916,45 @@ class Monitor implements Runnable {
 	 * acknowledge the shepherd.
 	 */
 	public void run() {
-		while(true) {
+		while(true) {			
 			if(node.isShepherd) {
 				node.receiveNewNodes();
 			} else {
 				
 				while(!node.isShepherd) {
-					// Add a number of milliseconds between 1-10 minutes randomly so we
+					// Add a number of milliseconds between 0-MAXIMUM_ADDED_TIME minutes randomly so we
 					// don't get the chance to all gang up on our shepherd at once.
 					// Also to reduce number of pings in general.
-					long maxNumMillisToDelay = 600 * 1000;
 					Random rand = new Random();
-					long randomAdditionalTime = (long)(rand.nextDouble() * maxNumMillisToDelay);
+					long randomAdditionalTime = (long)(rand.nextDouble() * MAXIMUM_ADDED_TIME_BETWEEN_PINGS);
 					
 					try {
 						Thread.sleep(MINIMUM_TIME_BETWEEN_PINGS + randomAdditionalTime);
-						// TODO: Now that I'm here, I should ping my shepherd to see if they're
-						// alive and to let them know that I exist!
+						node.waitingForPingResponse = true;
+						node.receivedPingResponse = false;
+						
+						// We wait 30 seconds after we send our ping packet for a response.
+						// Otherwise, we assume our shepherd is dead.
+						long timeToWaitForResponse = 30 * 1000;
+						
+						node.asyncSend(node.myShepherd, node.buildPingPacket());
+						
+						// Wait for response.
+						Thread.sleep(timeToWaitForResponse);
+						
+						// TODO: Finish this.
+						/*
+						 * We should have receivedPingResponse set by a packet sent back to us
+						 * by our shepherd. If so, we should break out of this while loop.
+						 * We should then see if 
+						 */
+
+						/*
+						if(!node.receivedPingResponse) {
+							break;
+						}
+						*/
+						
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 						break;
