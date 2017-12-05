@@ -168,6 +168,7 @@ public class CMNode {
 			packetDistributer.addHandler(PACKET_REQUEST_FILE_ID, new CMNodeRequestFileHandler(this));
 			packetDistributer.addHandler(PACKET_DOWNLOAD_FILE_ID, new CMNodeFileDownloadHandler(this));
 			packetDistributer.addHandler(PACKET_PROPOSE_FILE_ID, new CMNodeProposalHandler(this));
+			packetDistributer.addHandler(PACKET_MANDATE_DOWNLOAD_ID, new CMNodeFileMandateHandler(this));
 			
 			server.setListener(new DistributerListener(packetDistributer));
 			server.start(port);
@@ -583,6 +584,13 @@ public class CMNode {
 		return fileName.endsWith(".pdf");
 	}
 	
+	/*
+	 * Checks that the String correctly verifies that it came from our shepherd.
+	 */
+	public boolean verifyShepherdOrigin(HashMap<String, String> data) {
+		return Integer.parseInt(data.get("nodeId")) == nodeId;
+	}
+	
 	/* 
 	 * Parse node identifier data and return the parsed data in a way that makes sense.
 	 * This is the reverse method of formatNodeIdentifierData.
@@ -700,19 +708,20 @@ public class CMNode {
 	/*
 	 * Request a file for download from the specified node nm.
 	 */
-	public void requestFile(NodeMetadata nm, String fileName) {
+	public void requestFile(NodeMetadata nm, String fileName, boolean mandated) {
 		System.out.println("\n\nPreparing to request file...");
 		
 		System.out.println("Seeing if this file is something we're already waiting for...");
 		
 		// Update requestedFiles so we accept the download packet once it comes.
 		if(requestedFiles.containsKey(fileName)) {
-			System.out.println("Already waiting for file. Setting a personal request as well.");
+			System.out.println("Already waiting for file.");
 			ExpectedFileMetadata efm = requestedFiles.get(fileName);
-			efm.personallyWanted = true;
+			efm.shepherdMandated = mandated;
+			efm.personallyWanted = !mandated;
 		} else {
 			System.out.println("Recording that we're expecting this file.");
-			ExpectedFileMetadata efm = new ExpectedFileMetadata(fileName, false, true);
+			ExpectedFileMetadata efm = new ExpectedFileMetadata(fileName, mandated, !mandated);
 			requestedFiles.put(fileName, efm);
 		}
 		
@@ -840,7 +849,7 @@ public class CMNode {
 			System.out.println(me.storedFiles);
 		} else {
 			NodeMetadata myComp = CM_HARDCODED_NODES[0];
-			me.requestFile(myComp, "Do Androids Dream of Electric Sheep by Philip Dick.pdf");
+			me.requestFile(myComp, "Do Androids Dream of Electric Sheep by Philip Dick.pdf", false);
 		}
 		
 	}

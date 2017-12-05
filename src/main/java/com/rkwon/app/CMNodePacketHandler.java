@@ -307,3 +307,44 @@ class CMNodeProposalHandler implements PacketHandler {
 		}
 	}
 }
+
+/*
+ * Handles a file mandate from our shepherd.
+ */
+class CMNodeFileMandateHandler implements PacketHandler {
+	
+	public static final short PACKET_ID = CMNode.PACKET_MANDATE_DOWNLOAD_ID;
+	
+	// The host who's receiving the responses.
+	public CMNode host;
+	
+	public CMNodeFileMandateHandler(CMNode host) {
+		this.host = host;
+	}
+	
+	/*
+	 * Client c is the sender
+	 * 
+	 * 1) Make sure the person sending us the mandate is _our_ shepherd.
+	 * 2) If so, request the file from the specified IP address and port.
+	 */
+	public void handlePacket(final Packet p, final Client c) throws IOException {
+		System.out.println("\n\nReceiving file mandate...");
+		PacketReader reader = new PacketReader(p);
+
+		HashMap<String, String> parsedData = host.parseFileMandateHeader(reader.readString());
+		
+		System.out.println("Parsed data is: " + parsedData);
+		
+		System.out.println("Checking for verification that this is our shepherd...");
+		if(host.verifyShepherdOrigin(parsedData)) {
+			System.out.println("Verified to come from shepherd. Creating request for mandated file...");
+			
+			NodeMetadata fileHolder = new NodeMetadata(parsedData);
+			String fileName = parsedData.get("fileName");
+			host.requestFile(fileHolder, fileName, true);
+		} else {
+			System.out.println("This person is not our shepherd. Ignoring mandate.");
+		}
+	}
+}
