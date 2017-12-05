@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 import nl.pvdberg.pnet.client.Client;
@@ -345,6 +346,54 @@ class CMNodeFileMandateHandler implements PacketHandler {
 			host.requestFile(fileHolder, fileName, true);
 		} else {
 			System.out.println("This person is not our shepherd. Ignoring mandate.");
+		}
+	}
+}
+
+/*
+ * Handles a ping as a shepherd. If we're not a shepherd, ignores the ping.
+ */
+class CMNodePingHandler implements PacketHandler {
+	
+	public static final short PACKET_ID = CMNode.PACKET_PING_REQUEST_ID;
+	
+	// The host who's receiving the responses.
+	public CMNode host;
+	
+	public CMNodePingHandler(CMNode host) {
+		this.host = host;
+	}
+	
+	/*
+	 * Client c is the sender
+	 * 
+	 * A ping contains identifying information and the files which are
+	 * stored by the sending node. We incorporate this information if we're a shepherd,
+	 * and we respond to the ping with a list of files in the network.
+	 */
+	public void handlePacket(final Packet p, final Client c) throws IOException {
+		System.out.println("\n\nReceiving ping...");
+		PacketReader reader = new PacketReader(p);
+
+		HashMap<String, Object> parsedData = host.parsePing(reader.readString());
+		
+		System.out.println("Parsed data is: " + parsedData);
+		
+		if(host.isShepherd) {
+			String ipAddress = (String) parsedData.get("ipAddress");
+			int port = Integer.parseInt( (String) parsedData.get("port")); //TODO: Ugly. Not sure if other ways are safe though. Look at again later.
+			int nodeId = Integer.parseInt( (String) parsedData.get("nodeId"));
+			ArrayList<String> fileNames = (ArrayList<String>) parsedData.get("files");
+			
+			NodeMetadata node = new NodeMetadata(ipAddress, port, nodeId);
+			
+			// Update what filesNames we have replicated.
+			host.updateFlockMember(node);
+			host.updateNetworkFileLocations(node, fileNames, true);
+			
+			// TODO: Respond to ping.
+		} else {
+			System.out.println("We're not a shepherd. Ignoring ping!");
 		}
 	}
 }

@@ -108,6 +108,12 @@ public class CMNode {
 	public boolean isShepherd;
 	public NodeMetadata myShepherd;
 	
+	// Maps fileName -> Node Identifiers.
+	public HashMap<String, HashSet<String>> networkFiles = new HashMap<String, HashSet<String>>(); 
+	
+	// Maps IP Address-port -> node metadata object.
+	public HashMap<String, NodeMetadata> flock = new HashMap<String, NodeMetadata>();
+	
 	// Tracking which nodes have proposed how many files.
 	// NOTE: Key is NodeMetadata.toString().
 	public HashMap<String, Integer> numProposals = new HashMap<String, Integer>();
@@ -741,6 +747,45 @@ public class CMNode {
 	}
 	
 	/*
+	 * If we're a shepherd, updates our flock.
+	 * 
+	 * If we already knew about nm, updates information if relevant. If we didn't,
+	 * then adds it to our known list of flock members.
+	 */
+	public void updateFlockMember(NodeMetadata nm) {
+		System.out.println("\n\nUpdating flock member data...");
+		String identifyingData = nm.toString();
+		
+		System.out.println("Identifying data: " + identifyingData);
+		
+		long timeToLive = System.currentTimeMillis() + Monitor.MAXIMUM_ADDED_TIME_BETWEEN_PINGS + Monitor.MINIMUM_TIME_BETWEEN_PINGS;
+		System.out.println("Node's time to live: " + timeToLive);
+		
+		if(flock.containsKey(identifyingData)) {
+			flock.get(identifyingData).updateTimeConsideredDead(timeToLive);
+		} else {
+			nm.updateTimeConsideredDead(timeToLive);
+			System.out.println("Adding new node. Time to live: " + nm.timeConsideredDead);
+			flock.put(identifyingData, nm);
+		}
+		
+		System.out.println("Done updating flock");
+	}
+	
+	/*
+	 * Updates our knowledge of where files may be found given node and fileNames.
+	 * 
+	 * fileNames are the list of files that we're informed live at node.
+	 * 
+	 * added is a boolean flag that indicates whether the node is alive or dead.
+	 * If it's alive, we update our knowledge accordingly. If it's dead, we look through
+	 * our knowledge and remove that node as a holder of the relevant files. 
+	 */
+	public void updateNetworkFileLocations(NodeMetadata node, List<String> fileNames, boolean added) {
+		// TODO: Finish this.
+	}
+	
+	/*
 	 * Request a file for download from the specified node nm.
 	 */
 	public void requestFile(NodeMetadata nm, String fileName, boolean mandated) {
@@ -891,11 +936,12 @@ public class CMNode {
 }
 
 /*
- * Monitor performs the monitoring phase of 
+ * Monitor performs the monitoring phase of a node. This is periodic pings 
+ * to the shepherd, or waiting for new nodes if you are a shepherd. 
  */
 class Monitor implements Runnable {
 	
-	// Every so often, 
+	// Every so often, ping our shepherd if we're not a shepherd.
 	public static final long MINIMUM_TIME_BETWEEN_PINGS = 60 * 1000;
 	public static final long MAXIMUM_ADDED_TIME_BETWEEN_PINGS = 300 * 1000;
 	

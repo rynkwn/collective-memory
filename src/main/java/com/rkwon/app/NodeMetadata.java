@@ -14,6 +14,9 @@ public class NodeMetadata {
 	// node to allow some level of mutual authentication. We have a TODO to improve this eventually.
 	public int nodeId;
 	
+	// The time in millis since epoch when we consider this node to be dead.
+	public long timeConsideredDead;
+	
 	/*
 	 * Produces a NodeMetadata object given the results of CMNode.parseNodeIdentifierData()
 	 */
@@ -31,6 +34,20 @@ public class NodeMetadata {
 		this.ipAddress = ipAddress;
 		this.port = port;
 		this.nodeId = nodeId;
+	}
+	
+	public NodeMetadata(String ipAddress, int port, int nodeId, long timeConsideredDead) {
+		this.ipAddress = ipAddress;
+		this.port = port;
+		this.nodeId = nodeId;
+		this.timeConsideredDead = timeConsideredDead;
+	}
+	
+	/*
+	 * Updates the time this node is considered dead.
+	 */
+	public void updateTimeConsideredDead(long deathTime) {
+		timeConsideredDead = deathTime;
 	}
 	
 	/*
