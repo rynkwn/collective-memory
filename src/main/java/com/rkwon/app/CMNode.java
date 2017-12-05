@@ -390,7 +390,7 @@ public class CMNode {
 			
 			if(file != null) {
 				System.out.println("Conversion successful. Preparing to send.");
-				asyncSend(myShepherd, buildFileProposalPacket(fileName, file));
+				send(myShepherd, buildFileProposalPacket(fileName, file));
 			} else {
 				System.out.println("Conversion failed.");
 			}
@@ -525,10 +525,13 @@ public class CMNode {
 	 * Notes that the specified node nm has proposed a file.
 	 */
 	public void noteNodeHasProposed(NodeMetadata nm) {
+		System.out.println("Noting node has proposed: " + nm.toString());
 		if(numProposals.containsKey(nm.toString())) {
+			System.out.println("Node has never before proposed.");
 			numProposals.put(nm.toString(), 1);
 		} else {
 			int prevProposalNumber = numProposals.get(nm.toString());
+			System.out.println("Node has previously proposed this many times: " + prevProposalNumber);
 			numProposals.put(nm.toString(), prevProposalNumber + 1);
 		}
 	}
