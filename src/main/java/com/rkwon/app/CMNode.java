@@ -396,6 +396,17 @@ public class CMNode {
 		}
 	}
 	
+	/*
+	 * Ping our shepherd with some data about ourselves.
+	 */
+	public void ping(boolean async) {
+		if(async) {
+			asyncSend(myShepherd, buildPingPacket());
+		} else {
+			send(myShepherd, buildPingPacket());
+		}
+	}
+	
 	
 
 	////////////////////////////////////////////////////////
@@ -439,7 +450,7 @@ public class CMNode {
 					// I don't need to be a shepherd.
 					System.out.println("Not becoming a shepherd. Existing shepherd IP Address: " + nm.ipAddress);
 					myShepherd = nm;
-					asyncSend(myShepherd, buildPingPacket());
+					ping(false);
 					return false;
 					
 				} else {
@@ -449,7 +460,7 @@ public class CMNode {
 						// greater IP Address, then I resign.
 						System.out.println("Resigning shepherd status. My IP: " + ipAddress + ", other ip: " + nm.ipAddress);
 						myShepherd = nm;
-						asyncSend(myShepherd, buildPingPacket());
+						ping(false);
 						return false;
 					}
 				}				
@@ -473,6 +484,7 @@ public class CMNode {
 			waitingForShepherdResponse = false;
 			discoverNewShepherd(proposedShepherd); //TODO: Do I need this?
 			myShepherd = proposedShepherd;
+			ping(false);
 			
 			System.out.println("New shepherd set.");
 		}
