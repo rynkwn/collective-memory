@@ -171,6 +171,7 @@ public class CMNode {
 			packetDistributer.addHandler(PACKET_DOWNLOAD_FILE_ID, new CMNodeFileDownloadHandler(this));
 			packetDistributer.addHandler(PACKET_PROPOSE_FILE_ID, new CMNodeProposalHandler(this));
 			packetDistributer.addHandler(PACKET_MANDATE_DOWNLOAD_ID, new CMNodeFileMandateHandler(this));
+			packetDistributer.addHandler(PACKET_PING_REQUEST_ID, new CMNodePingHandler(this));
 			
 			server.setListener(new DistributerListener(packetDistributer));
 			server.start(port);
