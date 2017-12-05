@@ -403,3 +403,29 @@ class CMNodePingHandler implements PacketHandler {
 		}
 	}
 }
+
+/*
+ * Handles a ping response. We should get:
+ * A list of all files in the network
+ * A list of all living nodes in the network.
+ */
+class CMNodePingResponseHandler implements PacketHandler {
+	
+	public static final short PACKET_ID = CMNode.PACKET_PING_RESPONSE_ID;
+	
+	// The host who's receiving the responses.
+	public CMNode host;
+	
+	public CMNodePingResponseHandler(CMNode host) {
+		this.host = host;
+	}
+	
+	/*
+	 * Client c is the sender
+	 */
+	public void handlePacket(final Packet p, final Client c) throws IOException {
+		System.out.println("\n\nReceiving ping response...");
+		
+		
+	}
+}

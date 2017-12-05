@@ -17,6 +17,9 @@ import org.jgroups.JChannel;
 import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 public class CMNode {
 
 	public static final String CM_KEYWORD = "COLLECTIVE_MEMORY"; // 17 characters/bytes
@@ -71,6 +74,7 @@ public class CMNode {
 	public static final short PACKET_MANDATE_DOWNLOAD_ID = 623;
 	
 	public static final short PACKET_PING_REQUEST_ID = 1123;
+	public static final short PACKET_PING_RESPONSE_ID = 3211;
 	
 
 	////////////////////
@@ -113,6 +117,9 @@ public class CMNode {
 	
 	// Maps IP Address-port -> node metadata object.
 	public HashMap<String, NodeMetadata> flock = new HashMap<String, NodeMetadata>();
+	
+	// A list of network peers for this node. 
+	public ArrayList<String> peers = new ArrayList<String>();
 	
 	// Tracking which nodes have proposed how many files.
 	// NOTE: Key is NodeMetadata.toString().
@@ -746,6 +753,17 @@ public class CMNode {
 		parsedData.put("files", files);
 		return parsedData;
 	}
+	
+	/*
+	 * Parse a data string node identifying information, and also a list of file names.
+	 * Reverses formatFileMandateHeader()
+	 */
+	public PingResponse parsePingResponse(String data) {
+		Gson gson = new Gson();
+		PingResponse response = gson.fromJson(data, PingResponse.class);
+
+		return response;
+	}
 
 	/*
 	 * Produce a string which identifies this node, and how to reach this node.
@@ -773,6 +791,27 @@ public class CMNode {
 	 */
 	public String formatFileMandateHeader(NodeMetadata nm, String fileName, int nodeId) {
 		return nm.ipAddress + "\n" + nm.port + "\n" + fileName + "\n" + nodeId;
+	}
+	
+	/*
+	 * Formats a map containing two lists:
+	 * One is a list of network files as strings.
+	 * The other is a list of nodes in the flock (minus the shepherd).
+	 * 
+	 * nodeId is the id of the node who originated the ping.
+	 */
+	public String formatPingResponse(int nodeId) {		
+		ArrayList<String> files = new ArrayList<String>();
+		files.addAll(networkFiles.keySet());
+		
+		ArrayList<String> peers = new ArrayList<String>();
+		peers.addAll(flock.keySet());
+		
+		PingResponse response = new PingResponse(nodeId, files, peers);
+		
+		GsonBuilder builder = new GsonBuilder();
+		Gson gson = builder.create();
+		return gson.toJson(response);
 	}
 	
 	/*
@@ -873,7 +912,11 @@ public class CMNode {
 	 * our knowledge and remove that node as a holder of the relevant files. 
 	 */
 	public void updateNetworkFileLocations(NodeMetadata node, List<String> fileNames, boolean live) {
+		System.out.println("Updating network file locations...");
 		String nodeIdentifier = node.toString();
+		
+		System.out.println("Node identifier: " + nodeIdentifier);
+		System.out.println("Old network file locations:" + networkFiles);
 		
 		for(String fileName : fileNames) {
 			if(live) {
@@ -899,6 +942,8 @@ public class CMNode {
 				} 
 			}
 		}
+		
+		System.out.println("New network file locations:" + networkFiles);
 	}
 	
 	/*
