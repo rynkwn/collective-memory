@@ -2,13 +2,14 @@ package com.rkwon.app;
 
 import java.io.File;
 
+import java.util.*;
+
 public class Test {
 	
 	public static void main(String[] args) {
-		System.out.println(System.getProperty("user.home") + File.separator + "collective_memory" + File.separator + "stored");
-		String CM_STORAGE_DIRECTORY = System.getProperty("user.home") + File.separator + "collective_memory" + File.separator + "stored";
-		File storageDirs = new File(CM_STORAGE_DIRECTORY);
-		storageDirs.mkdirs();
+		for(int i = 0; i < 10; i++) {
+			System.out.println(new Random().nextInt(Integer.MAX_VALUE));
+		}
 	}
 
 }

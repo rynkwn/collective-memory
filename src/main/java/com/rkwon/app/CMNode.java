@@ -67,6 +67,9 @@ public class CMNode {
 	public static final short PACKET_DOWNLOAD_FILE_ID = 26;
 	public static final short PACKET_PROPOSE_FILE_ID = 13; // Unlucky.
 	
+	// Shepherd-node communication packet ids.
+	public static final short PACKET_MANDATE_DOWNLOAD_ID = 623;
+	
 	public static final short PACKET_PING_REQUEST_ID = 1123;
 	
 
@@ -81,6 +84,11 @@ public class CMNode {
 	
 	public String ipAddress;
 	public int port; // Note: this is the SERVER's port.
+	
+	// This is a special ID known only to me and my shepherd. I expect this to be sent
+	// back to me in packets that require verification that it was sent by my shepherd.
+	// TODO: In the future, it makes more sense to have packets signed by public/private keys, but this is more lightweight.
+	public int nodeId;
 
 	// Message openings.
 	public Server server;
@@ -139,6 +147,7 @@ public class CMNode {
 			channel = new JChannel();
 			
 			ipAddress = Utility.getIP();
+			nodeId = new Random().nextInt(Integer.MAX_VALUE);
 			System.out.println("My IP Address is: " + ipAddress);
 			
 			port = CM_PERSONAL_STANDARD_PORT; // TODO: We should try other ports
@@ -567,6 +576,13 @@ public class CMNode {
 		requestedFiles.remove(fileName);
 	}
 	
+	/*
+	 * A quick check to see if the proposed file is valid.
+	 */
+	public boolean checkValidProposal(String fileName) {
+		return fileName.endsWith(".pdf");
+	}
+	
 	/* 
 	 * Parse node identifier data and return the parsed data in a way that makes sense.
 	 * This is the reverse method of formatNodeIdentifierData.
@@ -597,6 +613,22 @@ public class CMNode {
 		
 		return parsedData;
 	}
+	
+	/*
+	 * Parse a data string into IP Address, port, filename, and nodeId 
+	 * Reverses formatFileMandateHeader()
+	 */
+	public HashMap<String, String> parseFileMandateHeader(String data) {
+		HashMap<String, String> parsedData = new HashMap<String, String>();
+
+		String[] splitData = data.split("\n");
+		parsedData.put("ipAddress", splitData[0]);
+		parsedData.put("port", splitData[1]);
+		parsedData.put("fileName", splitData[2]);
+		parsedData.put("nodeId", splitData[3]);
+		
+		return parsedData;
+	}
 
 	/*
 	 * Produce a string which identifies this node, and how to reach this node.
@@ -610,6 +642,13 @@ public class CMNode {
 	 */
 	public String formatNodeIdentifierDataAndFile(String fileName) {
 		return ipAddress + "\n" + port + "\n" + fileName;
+	}
+	
+	/*
+	 * Formats a String as part of a file mandate from a shepherd.
+	 */
+	public String formatFileMandateHeader(NodeMetadata nm, String fileName, int nodeId) {
+		return nm.ipAddress + "\n" + nm.port + "\n" + fileName + "\n" + nodeId;
 	}
 	
 	/*
@@ -747,6 +786,22 @@ public class CMNode {
 								.withID(CMNode.PACKET_PROPOSE_FILE_ID)
 								.withString(formatNodeIdentifierDataAndFile(fileName))
 								.withBytes(file)
+								.build();
+	}
+	
+	/*
+	 * Builds a file mandate packet. 
+	 * 
+	 * This is a packet sent from a shepherd to a node in its flock. This packet contains:
+	 * 
+	 * Who to download the file from (IP address and port)
+	 * What to download
+	 * Proof that I'm your shepherd.
+	 */
+	public Packet buildFileMandatePacket(NodeMetadata fileHolder, String fileName, int recipientNodeId) {
+		return new PacketBuilder(Packet.PacketType.Request)
+								.withID(CMNode.PACKET_MANDATE_DOWNLOAD_ID)
+								.withString(formatFileMandateHeader(fileHolder, fileName, recipientNodeId))
 								.build();
 	}
 

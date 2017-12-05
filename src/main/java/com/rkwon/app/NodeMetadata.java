@@ -10,6 +10,10 @@ public class NodeMetadata {
 	public String ipAddress;
 	public int port;
 	
+	// nodeId is a poor man's private/public key. We exchange it between the shepherd and the
+	// node to allow some level of mutual authentication. We have a TODO to improve this eventually.
+	public int nodeId;
+	
 	/*
 	 * Produces a NodeMetadata object given the results of CMNode.parseNodeIdentifierData()
 	 */
@@ -21,6 +25,12 @@ public class NodeMetadata {
 	public NodeMetadata(String ipAddress, int port) {
 		this.ipAddress = ipAddress;
 		this.port = port;
+	}
+	
+	public NodeMetadata(String ipAddress, int port, int nodeId) {
+		this.ipAddress = ipAddress;
+		this.port = port;
+		this.nodeId = nodeId;
 	}
 	
 	/*
@@ -39,6 +49,15 @@ public class NodeMetadata {
 	 */
 	public int compareIpAddresses(String otherIpAddress) {
 		return ipAddress.compareTo(otherIpAddress);
+	}
+	
+	/*
+	 * Returns ipAddress-port-nodeId
+	 * 
+	 * 
+	 */
+	public String toStringWithAuth() {
+		return ipAddress + "-" + port + "-" + nodeId;
 	}
 	
 	/*
