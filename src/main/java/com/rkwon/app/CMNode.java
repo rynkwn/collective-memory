@@ -447,6 +447,18 @@ public class CMNode {
 	}
 	
 	/*
+	 * Return true if nodeId is associated with our recorded metadata for nm.
+	 */
+	public boolean authenticateNodeIdentity(NodeMetadata nm, int nodeId) {
+		if(flock.containsKey(nm.toString())) {
+			NodeMetadata recordedNode = flock.get(nm.toString());
+			return recordedNode.nodeId == nodeId;
+		} 
+		
+		return false;
+	}
+	
+	/*
 	 * Returns true if nm is allowed to propose.
 	 * 
 	 * Really only useful if this node is a shepherd, and is checking to see if
@@ -623,6 +635,22 @@ public class CMNode {
 		
 		return parsedData;
 	}
+
+	/*
+	 * Parse a data string into IP Address, port, nodeId, and filename. 
+	 * Reverses formatIdentifierWithAuth()
+	 */
+	public HashMap<String, String> parseIdentifierWithAuth(String data) {
+		HashMap<String, String> parsedData = new HashMap<String, String>();
+
+		String[] splitData = data.split("\n");
+		parsedData.put("ipAddress", splitData[0]);
+		parsedData.put("port", splitData[1]);
+		parsedData.put("nodeId", splitData[2]);
+		parsedData.put("fileName", splitData[3]);
+		
+		return parsedData;
+	}
 	
 	/*
 	 * Parse a data string into IP Address, port, filename, and nodeId 
@@ -650,8 +678,7 @@ public class CMNode {
 		String[] splitData = data.split("\n");
 		parsedData.put("ipAddress", splitData[0]);
 		parsedData.put("port", splitData[1]);
-		parsedData.put("fileName", splitData[2]);
-		parsedData.put("nodeId", splitData[3]);
+		parsedData.put("nodeId", splitData[2]);
 		
 		ArrayList<String> files = new ArrayList<String>();
 		
@@ -675,6 +702,13 @@ public class CMNode {
 	 */
 	public String formatNodeIdentifierDataAndFile(String fileName) {
 		return ipAddress + "\n" + port + "\n" + fileName;
+	}
+	
+	/*
+	 * Produces a string that identifies this node, and also contains a file name.
+	 */
+	public String formatIdentifierWithAuth(String fileName) {
+		return ipAddress + "\n" + port + "\n" + nodeId + "\n" + fileName;
 	}
 	
 	/*
@@ -873,7 +907,7 @@ public class CMNode {
 	public Packet buildFileProposalPacket(String fileName, byte[] file) {
 		return new PacketBuilder(Packet.PacketType.Request)
 								.withID(CMNode.PACKET_PROPOSE_FILE_ID)
-								.withString(formatNodeIdentifierDataAndFile(fileName))
+								.withString(formatIdentifierWithAuth(fileName))
 								.withBytes(file)
 								.build();
 	}

@@ -290,15 +290,19 @@ class CMNodeProposalHandler implements PacketHandler {
 		System.out.println("\n\nReceiving file proposal...");
 		PacketReader reader = new PacketReader(p);
 
-		HashMap<String, String> parsedData = host.parseNodeIdentifierAndFileNameData(reader.readString());
+		HashMap<String, String> parsedData = host.parseIdentifierWithAuth(reader.readString());
 		byte[] data = reader.readBytes();
 		
 		System.out.println("Parsed data is: " + parsedData);
 		
 		NodeMetadata proposer = new NodeMetadata(parsedData);
+		int nodeId = Integer.parseInt(parsedData.get("nodeId"));
 		String fileName = parsedData.get("fileName");
 		
-		if(host.isShepherd && host.nodeCanPropose(proposer) && host.checkValidProposal(fileName)) {
+		if(host.isShepherd &&
+				host.authenticateNodeIdentity(proposer, nodeId) &&
+				host.nodeCanPropose(proposer) && 
+				host.checkValidProposal(fileName)) {
 			System.out.println("Valid proposal. Downloading into " + CMNode.CM_PROPOSE_DIRECTORY);
 			
 			host.noteNodeHasProposed(proposer);
