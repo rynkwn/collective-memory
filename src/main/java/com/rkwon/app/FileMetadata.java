@@ -9,7 +9,7 @@ import java.nio.file.Paths;
 /*
  * A class to hold metadata about a specific file.
  */
-public class FileMetadata {
+public class FileMetadata implements java.io.Serializable {
 	String fileName;
 	Path filePath;
 	

@@ -45,7 +45,7 @@ public class CMNode {
 	
 	// A list of nodes to try to connect to if we can't find any through our JGroup.
 	public static final NodeMetadata[] CM_HARDCODED_NODES = {
-		new NodeMetadata("137.165.74.28", 51325), // My IP address while at Williams.
+		new NodeMetadata("137.165.72.83", 51325), // My IP address while at Williams.
 		new NodeMetadata("137.165.8.105", 51325), // The IP Address of red.cs.williams.edu
 	};
 	
@@ -55,9 +55,15 @@ public class CMNode {
 	// Directory location for CM files we're asked to store by our shepherd.
 	public static final String CM_STORAGE_DIRECTORY = CM_BASE_DIR + File.separator + "stored";
 	
+	// Location where we save stored file state.
+	public static final String CM_STORAGE_FILE = CM_STORAGE_DIRECTORY + File.separator + "stored-files.ser";
+	
 	// Directory location for files that have been proposed to us as a shepherd.
 	// If we're not a shepherd, this directory is unused.
 	public static final String CM_PROPOSE_DIRECTORY = CM_BASE_DIR + File.separator + "proposed";
+	
+	// Location where we save proposed file state.
+	public static final String CM_PROPOSED_FILE = CM_PROPOSE_DIRECTORY + File.separator + "proposed-files.ser";
 	
 	////////////////////
 	//
@@ -215,6 +221,12 @@ public class CMNode {
 			System.out.println("Setting up proposal directory in: " + CM_PROPOSE_DIRECTORY);
 			File proposalDirs = new File(CM_PROPOSE_DIRECTORY);
 			proposalDirs.mkdirs();
+			
+			System.out.println("Restoring stored file state");
+			restoreStoredFileState();
+			
+			System.out.println("Restoring proposed file state");
+			restoreProposedFileState();
 			
 		} catch (Exception e) {
 			System.out.println("CM Node creation failed!");
@@ -497,7 +509,7 @@ public class CMNode {
 	public void cli() {
 		Scanner scan = new Scanner(System.in);
 		
-		System.out.println("Welcome to Collective Memory!");
+		System.out.println("\n\n\nWelcome to Collective Memory!");
 		prompt();
 		String input = scan.nextLine();
 		System.out.println("\n");
@@ -864,6 +876,7 @@ public class CMNode {
 	 */
 	public void addProposedFile(String fileName) {
 		proposedFiles.add(fileName);
+		saveProposedFiles();
 	}
 	
 	/*
@@ -884,6 +897,54 @@ public class CMNode {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		
+		saveProposedFiles();
+	}
+	
+	/*
+	 * Saves our stored file state to a file.
+	 */
+	public void saveProposedFiles() {
+		OutputStream ops = null;
+		ObjectOutputStream objOps = null;
+		
+		try {		
+			ops = new FileOutputStream(CMNode.CM_PROPOSED_FILE, false);
+			objOps = new ObjectOutputStream(ops);
+			objOps.writeObject(proposedFiles);
+			objOps.flush();
+		} catch(Exception e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				if(objOps != null) objOps.close();
+			} catch(Exception e) {
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	/*
+	 * Restores our stored files if possible.
+	 */
+	public void restoreProposedFileState() {
+		InputStream fileIs = null;
+        ObjectInputStream objIs = null;
+        try {
+            fileIs = new FileInputStream(CMNode.CM_PROPOSED_FILE);
+            objIs = new ObjectInputStream(fileIs);
+            proposedFiles = (ArrayList<String>) objIs.readObject();
+        } catch (FileNotFoundException e) {
+        	System.out.println("No such file found!");
+        } catch (Exception e) {
+        	e.printStackTrace();
+        } finally {
+            try {
+                if(objIs != null) objIs.close();
+            } catch (Exception e){
+                 e.printStackTrace();
+            }
+        }
 	}
 	
 	/*
@@ -1354,6 +1415,7 @@ public class CMNode {
 			Files.copy(origPath, storagePath);
 			FileMetadata fm = new FileMetadata(fileName, newFilePath);
 			storedFiles.add(fm);
+			saveStoredFiles();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -1365,6 +1427,53 @@ public class CMNode {
 	 */
 	public void addStoredFile(FileMetadata fm) {
 		storedFiles.add(fm);
+		saveStoredFiles();
+	}
+	
+	/*
+	 * Saves our stored file state to a file.
+	 */
+	public void saveStoredFiles() {
+		OutputStream ops = null;
+		ObjectOutputStream objOps = null;
+		
+		try {		
+			ops = new FileOutputStream(CMNode.CM_STORAGE_FILE, false);
+			objOps = new ObjectOutputStream(ops);
+			objOps.writeObject(storedFiles);
+			objOps.flush();
+		} catch(Exception e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				if(objOps != null) objOps.close();
+			} catch(Exception e) {
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	/*
+	 * Restores our stored files if possible.
+	 */
+	public void restoreStoredFileState() {
+		InputStream fileIs = null;
+        ObjectInputStream objIs = null;
+        try {
+            fileIs = new FileInputStream(CMNode.CM_STORAGE_FILE);
+            objIs = new ObjectInputStream(fileIs);
+            storedFiles = (ArrayList<FileMetadata>) objIs.readObject();
+        } catch (FileNotFoundException e) {
+        	System.out.println("No such file found!");
+        } catch (Exception e) {
+        	e.printStackTrace();
+        } finally {
+            try {
+                if(objIs != null) objIs.close();
+            } catch (Exception e){
+                 e.printStackTrace();
+            }
+        }
 	}
 	
 	/*
