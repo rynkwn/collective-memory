@@ -639,10 +639,10 @@ public class CMNode {
 			System.out.print(peer);
 			if(peer.equals(formatNodeIdentifierData())) {
 				System.out.print("\t" + "(ME)");
-			}
-			
-			if(isShepherd) {
-				System.out.print("\t" + "(SHEPHERD!)");
+				
+				if(isShepherd) {
+					System.out.print("\t" + "(SHEPHERD!)");
+				}
 			}
 			
 			if(myShepherd != null && peer.equals(myShepherd.toString())) {
@@ -1219,10 +1219,10 @@ public class CMNode {
 			files.add(fm.fileName);
 		}
 		
-		ArrayList<String> peers = new ArrayList<String>();
-		peers.addAll(flock.keySet());
+		ArrayList<String> peerList = new ArrayList<String>();
+		peerList.addAll(peers);
 		
-		PingResponse response = new PingResponse(nodeId, files, peers);
+		PingResponse response = new PingResponse(nodeId, files, peerList);
 		
 		GsonBuilder builder = new GsonBuilder();
 		Gson gson = builder.create();
