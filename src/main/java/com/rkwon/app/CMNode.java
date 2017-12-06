@@ -45,7 +45,6 @@ public class CMNode {
 	
 	// A list of nodes to try to connect to if we can't find any through our JGroup.
 	public static final NodeMetadata[] CM_HARDCODED_NODES = {
-		new NodeMetadata("137.165.72.83", 51325), // My IP address while at Williams.
 		new NodeMetadata("137.165.8.105", 51325), // The IP Address of red.cs.williams.edu
 	};
 	
