@@ -132,6 +132,9 @@ public class CMNode {
 	// We default to where we think their downloads directory should be...
 	public String downloadLocation = System.getProperty("user.home") + File.separator + "Downloads";
 	
+	// Pointer is used for things like proposing.
+	public File pointer = new File(downloadLocation);
+	
 	// Special flags
 	public boolean waitingForShepherdResponse = false;
 	
@@ -463,7 +466,11 @@ public class CMNode {
 				peers();
 			} else if(input.equalsIgnoreCase("ddir")) {
 				ddir();
-			} else if(input.startsWith("get") || input.startsWith("GET")) {
+			} else if(input.startsWith("cd")) {
+				String argument = input.substring(input.indexOf(" ") + 1);
+				cd(argument);
+			}
+			else if(input.startsWith("get") || input.startsWith("GET")) {
 				try {
 					int index = Integer.parseInt(input.split(" ")[1]);
 					getCLI(index);
@@ -478,6 +485,8 @@ public class CMNode {
 			prompt();
 			input = scan.nextLine();
 		}
+		
+		scan.close();
 	}
 	
 	/*
@@ -495,6 +504,12 @@ public class CMNode {
 		System.out.println("HELP MENU:\n");
 		
 		System.out.println("`help`: Prints this menu");
+		System.out.println("`ls`: Lists all files in our pointer's local directory.");
+		System.out.println("`pwd`: Displays the current location of our pointer.");
+		System.out.println("`cd (directory)`: Move the pointer into the new directory");
+		System.out.println("`cd ..`: Move the pointer up one level.");
+		
+		System.out.println("");
 		System.out.println("`list`: Lists all files we know about");
 		System.out.println("`peers`: Lists all other nodes we know about");
 		System.out.println("`ddir`: Print out the current download directory");
@@ -539,6 +554,39 @@ public class CMNode {
 		System.out.println("DOWNLOAD DIRECTORY:\n");
 		
 		System.out.println(downloadLocation);
+		System.out.println("********************************");
+	}
+	
+	public void ls() {
+		System.out.println("********************************");
+		System.out.println("LOCAL FILES AT POINTER:\n");
+		
+		for(String fileName : pointer.list()) {
+			System.out.println(fileName);
+		}
+		System.out.println("********************************");
+	}
+	
+	public void pwd() {
+		System.out.println("********************************");
+		System.out.println("CURRENT POINTER LOCATION:\n");
+		
+		System.out.println(pointer.getAbsolutePath());
+		System.out.println("********************************");
+	}
+	
+	public void cd(String dir) {
+		System.out.println("********************************");
+		System.out.println("MOVING POINTER:\n");
+		
+		File newLoc = new File(pointer.getAbsolutePath(), dir);
+		if(newLoc.exists()) {
+			pointer = newLoc;
+			System.out.println("Moved pointer successfully!");
+			System.out.println(pointer.getAbsolutePath());
+		} else {
+			System.out.println("Pointer destination doesn't exist. Move failed");
+		}
 		System.out.println("********************************");
 	}
 	

@@ -7,7 +7,9 @@ import java.util.*;
 public class Test {
 	
 	public static void main(String[] args) {
-		System.out.println(Integer.parseInt("test"));
+		String test = "test asdf";
+		
+		System.out.println(test.substring(test.indexOf(" ") + 1));
 	}
 
 }
