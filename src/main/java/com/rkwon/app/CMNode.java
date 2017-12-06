@@ -1314,6 +1314,8 @@ public class CMNode {
 			flock.put(identifyingData, nm);
 		}
 		
+		peers.add(nm.toString());
+		
 		System.out.println("Done updating flock");
 	}
 	
