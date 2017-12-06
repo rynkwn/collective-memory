@@ -182,6 +182,8 @@ public class CMNode {
 												// if this one cannot be bound
 												// to.
 			System.out.println("My chosen port number is: " + port);
+			
+			peers.add(formatNodeIdentifierData());
 
 			// Start server to receive future packets.
 			server = new PlainServer();
@@ -546,8 +548,8 @@ public class CMNode {
 					System.out.println("ERROR: See `help` for help on commands");
 					e.printStackTrace();
 				}
-			} else if(isShepherd && input.equalsIgnoreCase("proposed")) {
-				proposed();
+			} else if(isShepherd && input.equalsIgnoreCase("propfiles")) {
+				propfiles();
 			} else if(isShepherd && input.startsWith("accept")) {
 				String argument = input.substring(input.indexOf(" ") + 1);
 				respond(argument, true);
@@ -566,6 +568,7 @@ public class CMNode {
 		System.out.println("\n\nGoodbye!");
 		ThreadManager.shutdown();
 		scan.close();
+		System.exit(0);
 	}
 	
 	/*
@@ -599,7 +602,7 @@ public class CMNode {
 		if(isShepherd) {
 			System.out.println();
 			System.out.println("SECRET SHEPHERD COMMANDS:");
-			System.out.println("`proposed`: List all proposed files");
+			System.out.println("`propfiles`: List all proposed files");
 			System.out.println("`accept [proposed file name]`: Accept a proposed file");
 			System.out.println("`reject [proposed file name]`: Reject a proposed file");
 		}
@@ -730,7 +733,7 @@ public class CMNode {
 	/*
 	 * For shepherds: list all files we have proposed to us.
 	 */
-	public void proposed() {
+	public void propfiles() {
 		if(isShepherd) {
 			System.out.println("********************************");
 			System.out.println("PROPOSED FILES:\n");
@@ -820,6 +823,7 @@ public class CMNode {
 			waitingForShepherdResponse = false;
 			discoverNewShepherd(proposedShepherd); //TODO: Do I need this?
 			myShepherd = proposedShepherd;
+			peers.add(myShepherd.toString());
 			ping(false);
 			
 			System.out.println("New shepherd set.");
