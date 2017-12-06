@@ -422,6 +422,141 @@ public class CMNode {
 		}
 	}
 	
+	/*
+	 * Creates and sends a GET request to our shepherd.
+	 */
+	public void get(String fileName) {
+		if(isShepherd) {
+			// If we're a shepherd, we should directly ask the node that holds it.
+			String identifier = getRandomNodeHoldingFile(fileName);
+			NodeMetadata nodeHoldingFile = new NodeMetadata(parseNodeIdentifierData(identifier));
+
+			requestFile(nodeHoldingFile, fileName, false);
+		} else {
+			requestFile(myShepherd, fileName, false);
+		}
+	}
+	
+	
+	////////////////////////////////////////////////////////
+	//
+	// COMMAND LINE INTERFACE
+	//
+	
+	/*
+	 * Reads in user commands and performs accordingly.
+	 */
+	public void cli() {
+		Scanner scan = new Scanner(System.in);
+		
+		System.out.println("Welcome to Collective Memory!");
+		prompt();
+		String input = scan.nextLine();
+		System.out.println("\n");
+		
+		while(! input.equalsIgnoreCase("q")) {
+			if(input.equalsIgnoreCase("help")) {
+				help();
+			} else if(input.equalsIgnoreCase("list")) {
+				list();
+			} else if(input.equalsIgnoreCase("peers")) {
+				peers();
+			} else if(input.equalsIgnoreCase("ddir")) {
+				ddir();
+			} else if(input.startsWith("get") || input.startsWith("GET")) {
+				try {
+					int index = Integer.parseInt(input.split(" ")[1]);
+					getCLI(index);
+				} catch(Exception e) {
+					System.out.println("ERROR: See `help` for help on commands");
+				}
+			} else {
+				System.out.println("I'm sorry, I didn't understand that.");
+			}
+			
+			System.out.println("\n");
+			prompt();
+			input = scan.nextLine();
+		}
+	}
+	
+	/*
+	 * A small prompt for the user.
+	 */
+	public void prompt() {
+		System.out.println("Type out a command, or print 'help' for help.");
+	}
+	
+	/*
+	 * Prints out a help menu!
+	 */
+	public void help() {
+		System.out.println("********************************");
+		System.out.println("HELP MENU:\n");
+		
+		System.out.println("`help`: Prints this menu");
+		System.out.println("`list`: Lists all files we know about");
+		System.out.println("`peers`: Lists all other nodes we know about");
+		System.out.println("`ddir`: Print out the current download directory");
+		System.out.println();
+		System.out.println("`get (number)`: Download the corresponding file as shown in `list`");
+		System.out.println("********************************");
+	}
+	
+	public void list() {
+		System.out.println("********************************");
+		System.out.println("KNOWN FILES:\n");
+		
+		int count = 0;
+		for(String file : files) {
+			System.out.print(count + "\t"); System.out.println(file);
+			count++;
+		}
+		System.out.println("********************************");
+	}
+	
+	public void peers() {
+		System.out.println("********************************");
+		System.out.println("KNOWN PEERS:\n");
+		
+		for(String peer : peers) {
+			System.out.print(peer);
+			if(peer.equals(formatNodeIdentifierData())) {
+				System.out.print("\t" + "(ME)");
+			}
+			
+			if(myShepherd != null && peer.equals(myShepherd.toString())) {
+				System.out.print("\t" + "(MY SHEPHERD)");
+			}
+			
+			System.out.println();
+		}
+		System.out.println("********************************");
+	}
+	
+	public void ddir() {
+		System.out.println("********************************");
+		System.out.println("DOWNLOAD DIRECTORY:\n");
+		
+		System.out.println(downloadLocation);
+		System.out.println("********************************");
+	}
+	
+	public void getCLI(int number) {
+		System.out.println("********************************");
+		System.out.println("GETTING FILE:\n");
+		
+		if(number < 0 || number >= files.size()) {
+			System.out.println("Error! Number not correct!");
+		} else {
+			String fileName = files.get(number);
+			System.out.println("Getting: " + fileName);
+			System.out.println("Downloading into: " + downloadLocation);
+			get(fileName);
+		}
+		System.out.println("********************************");
+	}
+	
 	
 
 	////////////////////////////////////////////////////////
