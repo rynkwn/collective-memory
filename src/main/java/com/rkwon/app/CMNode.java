@@ -481,6 +481,14 @@ public class CMNode {
 				} catch(Exception e) {
 					System.out.println("ERROR: See `help` for help on commands");
 				}
+			} else if(input.startsWith("propose") || input.startsWith("PROPOSE")) {
+				try {
+					String argument = input.substring(input.indexOf(" ") + 1);
+					propose(argument, pointer.getCanonicalPath() + File.separator + argument);
+				} catch(Exception e) {
+					System.out.println("ERROR: See `help` for help on commands");
+					e.printStackTrace();
+				}
 			} else {
 				System.out.println("I'm sorry, I didn't understand that.");
 			}
@@ -519,9 +527,20 @@ public class CMNode {
 		System.out.println("`ddir`: Print out the current download directory");
 		System.out.println();
 		System.out.println("`get (number)`: Download the corresponding file as shown in `list`");
+		System.out.println("`propose (filename)`: Propose a local file for upload into the network.");
+		
+		if(isShepherd) {
+			System.out.println();
+			System.out.println("SECRET SHEPHERD COMMANDS:");
+			
+		}
+		
 		System.out.println("********************************");
 	}
 	
+	/*
+	 * List all known files in the network.
+	 */
 	public void list() {
 		System.out.println("********************************");
 		System.out.println("KNOWN FILES:\n");
@@ -534,6 +553,9 @@ public class CMNode {
 		System.out.println("********************************");
 	}
 	
+	/*
+	 * List all known peers in the network.
+	 */
 	public void peers() {
 		System.out.println("********************************");
 		System.out.println("KNOWN PEERS:\n");
@@ -553,6 +575,9 @@ public class CMNode {
 		System.out.println("********************************");
 	}
 	
+	/*
+	 * Print the download directory.
+	 */
 	public void ddir() {
 		System.out.println("********************************");
 		System.out.println("DOWNLOAD DIRECTORY:\n");
@@ -561,6 +586,9 @@ public class CMNode {
 		System.out.println("********************************");
 	}
 	
+	/*
+	 * Print all files local to the pointer.
+	 */
 	public void ls() {
 		System.out.println("********************************");
 		System.out.println("LOCAL FILES AT POINTER:\n");
@@ -571,6 +599,9 @@ public class CMNode {
 		System.out.println("********************************");
 	}
 	
+	/*
+	 * Print pointer location.
+	 */
 	public void pwd() {
 		System.out.println("********************************");
 		System.out.println("CURRENT POINTER LOCATION:\n");
@@ -584,6 +615,9 @@ public class CMNode {
 		System.out.println("********************************");
 	}
 	
+	/*
+	 * Move pointer into a new directory.
+	 */
 	public void cd(String dir) {
 		System.out.println("********************************");
 		System.out.println("MOVING POINTER:\n");
@@ -606,6 +640,9 @@ public class CMNode {
 		System.out.println("********************************");
 	}
 	
+	/*
+	 * A CLI-friendly version to call GET.
+	 */
 	public void getCLI(int number) {
 		System.out.println("********************************");
 		System.out.println("GETTING FILE:\n");
