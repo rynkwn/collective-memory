@@ -466,6 +466,10 @@ public class CMNode {
 				peers();
 			} else if(input.equalsIgnoreCase("ddir")) {
 				ddir();
+			} else if(input.equalsIgnoreCase("ls")) {
+				ls();
+			} else if(input.equalsIgnoreCase("pwd")) { 
+				pwd();
 			} else if(input.startsWith("cd")) {
 				String argument = input.substring(input.indexOf(" ") + 1);
 				cd(argument);
@@ -571,7 +575,12 @@ public class CMNode {
 		System.out.println("********************************");
 		System.out.println("CURRENT POINTER LOCATION:\n");
 		
-		System.out.println(pointer.getAbsolutePath());
+		try {
+			System.out.println(pointer.getCanonicalPath());
+		} catch (IOException e) {
+			System.out.println("ERROR: Getting pathname failed!");
+			e.printStackTrace();
+		}
 		System.out.println("********************************");
 	}
 	
@@ -579,14 +588,21 @@ public class CMNode {
 		System.out.println("********************************");
 		System.out.println("MOVING POINTER:\n");
 		
-		File newLoc = new File(pointer.getAbsolutePath(), dir);
-		if(newLoc.exists()) {
-			pointer = newLoc;
-			System.out.println("Moved pointer successfully!");
-			System.out.println(pointer.getAbsolutePath());
-		} else {
-			System.out.println("Pointer destination doesn't exist. Move failed");
+		File newLoc;
+		try {
+			newLoc = new File(pointer.getCanonicalPath(), dir);
+			if(newLoc.exists()) {
+				pointer = newLoc;
+				System.out.println("Moved pointer successfully!");
+				System.out.println(pointer.getCanonicalPath());
+			} else {
+				System.out.println("Pointer destination doesn't exist. Move failed");
+			}
+		} catch (IOException e) {
+			System.out.println("ERROR: Move failed!");
+			e.printStackTrace();
 		}
+		
 		System.out.println("********************************");
 	}
 	
@@ -1280,6 +1296,9 @@ public class CMNode {
 	//
 
 	public static void main(String[] args) {
+		CMNode me = new CMNode();
+		me.cli();
+		/*
 		// Create myself as a CMNode.
 		CMNode me = new CMNode();
 		
@@ -1330,7 +1349,7 @@ public class CMNode {
 			}
 			me.propose("Do Androids Dream of Electric Sheep by Philip Dick.pdf", me.downloadLocation + File.separator + "Do Androids Dream of Electric Sheep by Philip Dick.pdf");
 		}
-		
+		*/
 	}
 }
 
