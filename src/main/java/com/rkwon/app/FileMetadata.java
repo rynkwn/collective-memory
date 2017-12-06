@@ -2,6 +2,7 @@ package com.rkwon.app;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -9,15 +10,15 @@ import java.nio.file.Paths;
 /*
  * A class to hold metadata about a specific file.
  */
-public class FileMetadata implements java.io.Serializable {
+public class FileMetadata implements Serializable{
 	String fileName;
-	Path filePath;
+	String filePath;
 	
 	File file;
 	
 	public FileMetadata(String fileName, String filePath) {
 		this.fileName = fileName;
-		this.filePath = Paths.get(filePath);
+		this.filePath = filePath;
 		file = new File(filePath);
 	}
 	
@@ -34,7 +35,7 @@ public class FileMetadata implements java.io.Serializable {
 	 */
 	public byte[] convertFileToByteArray() {
 		try {
-			return Files.readAllBytes(filePath);
+			return Files.readAllBytes(Paths.get(filePath));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

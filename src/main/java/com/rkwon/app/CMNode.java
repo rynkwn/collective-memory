@@ -226,6 +226,9 @@ public class CMNode {
 			
 			System.out.println("Restoring stored file state");
 			restoreStoredFileState();
+			for(FileMetadata fm : storedFiles) {
+				files.add(fm.fileName);
+			}
 			
 			System.out.println("Restoring proposed file state");
 			restoreProposedFileState();
@@ -636,6 +639,10 @@ public class CMNode {
 			System.out.print(peer);
 			if(peer.equals(formatNodeIdentifierData())) {
 				System.out.print("\t" + "(ME)");
+			}
+			
+			if(isShepherd) {
+				System.out.print("\t" + "(SHEPHERD!)");
 			}
 			
 			if(myShepherd != null && peer.equals(myShepherd.toString())) {
@@ -1419,6 +1426,7 @@ public class CMNode {
 			Files.copy(origPath, storagePath);
 			FileMetadata fm = new FileMetadata(fileName, newFilePath);
 			storedFiles.add(fm);
+			files.add(fm.fileName);
 			saveStoredFiles();
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -1431,6 +1439,7 @@ public class CMNode {
 	 */
 	public void addStoredFile(FileMetadata fm) {
 		storedFiles.add(fm);
+		files.add(fm.fileName);
 		saveStoredFiles();
 	}
 	
