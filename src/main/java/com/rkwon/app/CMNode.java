@@ -113,7 +113,7 @@ public class CMNode {
 	public NodeMetadata myShepherd;
 	
 	// Maps fileName -> Node Identifiers.
-	public HashMap<String, HashSet<String>> networkFiles = new HashMap<String, HashSet<String>>(); 
+	public HashMap<String, ArrayList<String>> networkFiles = new HashMap<String, ArrayList<String>>(); 
 	
 	// Maps IP Address-port -> node metadata object.
 	public HashMap<String, NodeMetadata> flock = new HashMap<String, NodeMetadata>();
@@ -929,17 +929,19 @@ public class CMNode {
 			if(live) {
 				// Add this node as a holder of the file.
 				if(networkFiles.containsKey(fileName)) {
-					HashSet<String> holdingNodes = networkFiles.get(fileName);
-					holdingNodes.add(nodeIdentifier);
+					ArrayList<String> holdingNodes = networkFiles.get(fileName);
+					
+					if(! holdingNodes.contains(nodeIdentifier))
+						holdingNodes.add(nodeIdentifier);
 				} else {
-					HashSet<String> holdingNodes = new HashSet<String>();
+					ArrayList<String> holdingNodes = new ArrayList<String>();
 					holdingNodes.add(nodeIdentifier);
 					networkFiles.put(fileName, holdingNodes);
 				}
 			} else {
 				// This is a dead node, so we remove it from the relevant places.
 				if(networkFiles.containsKey(fileName)) {
-					HashSet<String> holdingNodes = networkFiles.get(fileName);
+					ArrayList<String> holdingNodes = networkFiles.get(fileName);
 					holdingNodes.remove(nodeIdentifier);
 					
 					// TODO: Do we want to do this?
@@ -1006,6 +1008,18 @@ public class CMNode {
 	 */
 	public void addFileMetadataToStorage(FileMetadata fm) {
 		storedFiles.add(fm);
+	}
+	
+	/*
+	 * SHEPHERD METHOD.
+	 * 
+	 * Given all the nodes holding the file, choose one at random and return its identifier
+	 * as a string.
+	 */
+	public String getRandomNodeHoldingFile(String fileName) {
+		ArrayList<String> fileHolders = networkFiles.get(fileName);
+		int randomIndex = new Random().nextInt(fileHolders.size());
+		return fileHolders.get(randomIndex);
 	}
 	
 	////////////////////////////////////////////////////////

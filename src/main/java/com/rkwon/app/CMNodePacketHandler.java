@@ -135,6 +135,14 @@ class CMNodeJoinHandler implements PacketHandler {
 
 /*
  * Responds to a file download request.
+ * 
+ * NOTE: The way requests go is:
+ * 
+ * node -> requests file from -> shepherd
+ * 
+ * The shepherd then either responds with a file download offer, or, if 
+ * the file isn't held locally, forwards the request to a node that _does_
+ * have the file, who then offers the file download to the original node.
  */
 class CMNodeRequestFileHandler implements PacketHandler {
 	
@@ -174,7 +182,6 @@ class CMNodeRequestFileHandler implements PacketHandler {
 		System.out.println("Requested file is: " + fileName);
 		
 		// Determine if the file is among the files we should be storing.
-		// TODO: Finish this.
 		
 		FileMetadata fm = host.getMetadataForFile(fileName);
 		boolean success = false;
@@ -193,6 +200,16 @@ class CMNodeRequestFileHandler implements PacketHandler {
 				
 				host.send(requestingNode, filePacket);
 				success = true;
+			}
+		} else {
+			if(host.isShepherd) {
+				// We don't have the file locally stored.
+				// So, as a shepherd, we choose a random node in the network
+				// that we believe holds the file, and forward the request there.
+				String identifier = host.getRandomNodeHoldingFile(fileName);
+				NodeMetadata nodeHoldingFile = new NodeMetadata(host.parseNodeIdentifierData(identifier));
+				
+				host.send(nodeHoldingFile, p);
 			}
 		}
 		
