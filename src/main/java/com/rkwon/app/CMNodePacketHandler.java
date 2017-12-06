@@ -259,6 +259,10 @@ class CMNodeFileDownloadHandler implements PacketHandler {
 				// Download into storage.
 				System.out.println("Shepherd mandated download, downloading into " + CMNode.CM_STORAGE_DIRECTORY);
 				Files.write(Paths.get(CMNode.CM_STORAGE_DIRECTORY + File.separator + fileName), data);
+				
+				// Note that we're now storing this file.
+				FileMetadata fm = new FileMetadata(fileName, CMNode.CM_STORAGE_DIRECTORY + File.separator + fileName);
+				host.addStoredFile(fm);
 			}
 			
 			if(expectedFileData.personallyWanted) {
@@ -322,6 +326,7 @@ class CMNodeProposalHandler implements PacketHandler {
 				host.checkValidProposal(fileName)) {
 			System.out.println("Valid proposal. Downloading into " + CMNode.CM_PROPOSE_DIRECTORY);
 			String downloadPath = CMNode.CM_PROPOSE_DIRECTORY + File.separator + fileName;
+			host.addProposedFile(fileName);
 			System.out.println("Full filepath: " + downloadPath);
 			
 			host.noteNodeHasProposed(proposer);

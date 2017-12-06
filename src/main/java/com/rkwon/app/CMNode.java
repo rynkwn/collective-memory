@@ -8,9 +8,13 @@ import nl.pvdberg.pnet.event.PacketDistributer;
 import nl.pvdberg.pnet.packet.*;
 import nl.pvdberg.pnet.server.*;
 import nl.pvdberg.pnet.server.util.*;
+import nl.pvdberg.pnet.threading.ThreadManager;
 
 import java.util.*;
 import java.net.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.io.*;
 
 import org.jgroups.JChannel;
@@ -113,7 +117,10 @@ public class CMNode {
 	public NodeMetadata myShepherd;
 	
 	// Maps fileName -> Node Identifiers.
-	public HashMap<String, ArrayList<String>> networkFiles = new HashMap<String, ArrayList<String>>(); 
+	public HashMap<String, ArrayList<String>> networkFiles = new HashMap<String, ArrayList<String>>();
+	
+	// A list of files waiting for acceptance/rejection by the shepherd.
+	public ArrayList<String> proposedFiles = new ArrayList<String>();
 	
 	// Maps IP Address-port -> node metadata object.
 	public HashMap<String, NodeMetadata> flock = new HashMap<String, NodeMetadata>();
@@ -440,6 +447,44 @@ public class CMNode {
 		}
 	}
 	
+	////////////////////////////////////////////////////////
+	//
+	// SHEPHERD PROTOCOLS
+	//
+
+	/*
+	 * Respond to a proposed file for upload into the network.
+	 * 
+	 * accept: A boolean for whether or not we accept the file. If we don't accept,
+	 * we implicitly reject.
+	 */
+	public void respond(String fileName, boolean accept) {
+		String action = accept ? "accept" : "reject";
+		System.out.println("\n\nTrying to " + action + " file: " + fileName);
+		
+		if(isProposedFile(fileName)) {
+			System.out.println("File is a proposed file. Checking existence.");
+			
+			String filePath = CM_PROPOSE_DIRECTORY + File.separator + fileName;
+			File proposedFile = new File(filePath);
+			
+			if(proposedFile.exists()) {
+				System.out.println("File exists! " + action + "ing.");
+				if(accept) {
+					storeFile(fileName, filePath);
+				}
+				
+				// Then we remove the proposed file.
+				System.out.println("Trying to delete old copy of proposed file...");
+				removeProposedFile(fileName);
+				
+			} else {
+				System.out.println("File doesn't exist. Failed");
+			}
+		} else {
+			System.out.println("Not a proposed file! Failed.");
+		}
+	}
 	
 	////////////////////////////////////////////////////////
 	//
@@ -489,6 +534,14 @@ public class CMNode {
 					System.out.println("ERROR: See `help` for help on commands");
 					e.printStackTrace();
 				}
+			} else if(isShepherd && input.equalsIgnoreCase("proposed")) {
+				proposed();
+			} else if(isShepherd && input.startsWith("accept")) {
+				String argument = input.substring(input.indexOf(" ") + 1);
+				respond(argument, true);
+			} else if(isShepherd && input.startsWith("reject")) {
+				String argument = input.substring(input.indexOf(" ") + 1);
+				respond(argument, false);
 			} else {
 				System.out.println("I'm sorry, I didn't understand that.");
 			}
@@ -498,6 +551,8 @@ public class CMNode {
 			input = scan.nextLine();
 		}
 		
+		System.out.println("\n\nGoodbye!");
+		ThreadManager.shutdown();
 		scan.close();
 	}
 	
@@ -532,7 +587,9 @@ public class CMNode {
 		if(isShepherd) {
 			System.out.println();
 			System.out.println("SECRET SHEPHERD COMMANDS:");
-			
+			System.out.println("`proposed`: List all proposed files");
+			System.out.println("`accept [proposed file name]`: Accept a proposed file");
+			System.out.println("`reject [proposed file name]`: Reject a proposed file");
 		}
 		
 		System.out.println("********************************");
@@ -656,6 +713,22 @@ public class CMNode {
 			get(fileName);
 		}
 		System.out.println("********************************");
+	}
+	
+	/*
+	 * For shepherds: list all files we have proposed to us.
+	 */
+	public void proposed() {
+		if(isShepherd) {
+			System.out.println("********************************");
+			System.out.println("PROPOSED FILES:\n");
+			
+			for(String proposedFile : proposedFiles) {
+				System.out.println(proposedFile);
+			}
+			
+			System.out.println("********************************");
+		}
 	}
 	
 	
@@ -784,6 +857,33 @@ public class CMNode {
 		}
 		
 		System.out.println(numProposals);
+	}
+	
+	/*
+	 * Add a proposed file to our list of proposed files.
+	 */
+	public void addProposedFile(String fileName) {
+		proposedFiles.add(fileName);
+	}
+	
+	/*
+	 * Return a boolean indicating the file name is a proposed file.
+	 */
+	public boolean isProposedFile(String fileName) {
+		return proposedFiles.contains(fileName);
+	}
+	
+	/*
+	 * Removes a proposed file from our list and deletes the relevant file.
+	 */
+	public void removeProposedFile(String fileName) {
+		proposedFiles.remove(fileName);
+		String proposedFilePath = CMNode.CM_PROPOSE_DIRECTORY + File.separator + fileName;
+		try {
+			Files.delete(Paths.get(proposedFilePath));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	/*
@@ -1240,9 +1340,30 @@ public class CMNode {
 	}
 	
 	/*
-	 * Add some file metadata for some file that we have in storage.
+	 * Stores a file for the network.
+	 * 
+	 * Filepath is the current location of the file. We move it to the storage directory,
+	 * and that's the stated file path in the file metadata.
 	 */
-	public void addFileMetadataToStorage(FileMetadata fm) {
+	public void storeFile(String fileName, String filePath) {
+		Path origPath = Paths.get(filePath);
+		
+		String newFilePath = CMNode.CM_STORAGE_DIRECTORY + File.separator + fileName;
+		Path storagePath = Paths.get(newFilePath);
+		try {
+			Files.copy(origPath, storagePath);
+			FileMetadata fm = new FileMetadata(fileName, newFilePath);
+			storedFiles.add(fm);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	/*
+	 * Directly add a stored file to our list. Normally happens when we retrieve a mandated
+	 * download file.
+	 */
+	public void addStoredFile(FileMetadata fm) {
 		storedFiles.add(fm);
 	}
 	
@@ -1333,9 +1454,6 @@ public class CMNode {
 	//
 
 	public static void main(String[] args) {
-		CMNode me = new CMNode();
-		me.cli();
-		/*
 		// Create myself as a CMNode.
 		CMNode me = new CMNode();
 		
@@ -1356,6 +1474,9 @@ public class CMNode {
 		// Now, start up the normal CLI interface to request files, propose files, and such.
 		System.out.println("\n\nBooting up workhorse...");
 		
+		me.cli();
+		
+		/*
 		// TODO: Code below is strictly for testing.
 		FileMetadata testFile = new FileMetadata("Do Androids Dream of Electric Sheep by Philip Dick.pdf", 
 				"C:\\Users\\Inanity\\collective_memory\\stored\\Do Androids Dream of Electric Sheep by Philip Dick.pdf");
