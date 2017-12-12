@@ -1537,7 +1537,7 @@ public class CMNode {
 			System.out.println("New network file locations:" + networkFiles);
 		} finally {
 			System.out.println("Releasing lock.");
-			flockLock.lock();
+			flockLock.unlock();
 		}
 		
 		if(!flockLock.isLocked()) {
