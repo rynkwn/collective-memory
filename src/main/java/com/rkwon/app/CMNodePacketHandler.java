@@ -372,6 +372,9 @@ class CMNodeFileMandateHandler implements PacketHandler {
 			NodeMetadata fileHolder = new NodeMetadata(parsedData);
 			String fileName = parsedData.get("fileName");
 			host.requestFile(fileHolder, fileName, true);
+			
+			// Ping our host to let them know we've downloaded.
+			host.ping(false);
 		} else {
 			System.out.println("This person is not our shepherd. Ignoring mandate.");
 		}
