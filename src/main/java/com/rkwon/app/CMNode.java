@@ -843,6 +843,7 @@ public class CMNode {
 		}
 		
 		System.out.println("I'm becoming a shepherd. Great.");
+		flock.put(this.formatNodeIdentifierData(), new NodeMetadata(ipAddress, port, nodeId, Long.MAX_VALUE));
 		myShepherd = null;
 		return true;
 	}
@@ -1371,7 +1372,7 @@ public class CMNode {
 			System.out.println("Copies needed: " + numCopiesNeeded);
 			System.out.println();
 			
-			for(String file : files) {
+			for(String file : networkFiles.keySet()) {
 				System.out.println("Considering file: " + file);
 				
 				ArrayList<String> holdingNodes = networkFiles.get(file);
