@@ -1258,11 +1258,6 @@ public class CMNode {
 		ArrayList<String> files = new ArrayList<String>();
 		files.addAll(networkFiles.keySet());
 		
-		// Also add in whatever files are stored by this node specifically.
-		for(FileMetadata fm : storedFiles) {
-			files.add(fm.fileName);
-		}
-		
 		ArrayList<String> peerList = new ArrayList<String>();
 		peerList.addAll(peers);
 		
