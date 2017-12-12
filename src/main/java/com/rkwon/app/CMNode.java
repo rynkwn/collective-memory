@@ -144,6 +144,8 @@ public class CMNode {
 	// Shepherd Attributes
 	//
 	
+	// A lock for shepherds to manage nodes in their flock and files
+	// they're responsible for in a safe way.
 	public ReentrantLock flockLock = new ReentrantLock();
 	
 	// Maps fileName -> Node Identifiers.
@@ -1376,40 +1378,45 @@ public class CMNode {
 	 * our knowledge and remove that node as a holder of the relevant files. 
 	 */
 	public void updateNetworkFileLocations(NodeMetadata node, List<String> fileNames, boolean live) {
-		System.out.println("Updating network file locations...");
-		String nodeIdentifier = node.toString();
-		
-		System.out.println("Node identifier: " + nodeIdentifier);
-		System.out.println("Old network file locations:" + networkFiles);
-		
-		for(String fileName : fileNames) {
-			if(live) {
-				// Add this node as a holder of the file.
-				if(networkFiles.containsKey(fileName)) {
-					ArrayList<String> holdingNodes = networkFiles.get(fileName);
-					
-					if(! holdingNodes.contains(nodeIdentifier))
+		flockLock.lock();
+		try {
+			System.out.println("Updating network file locations...");
+			String nodeIdentifier = node.toString();
+			
+			System.out.println("Node identifier: " + nodeIdentifier);
+			System.out.println("Old network file locations:" + networkFiles);
+			
+			for(String fileName : fileNames) {
+				if(live) {
+					// Add this node as a holder of the file.
+					if(networkFiles.containsKey(fileName)) {
+						ArrayList<String> holdingNodes = networkFiles.get(fileName);
+						
+						if(! holdingNodes.contains(nodeIdentifier))
+							holdingNodes.add(nodeIdentifier);
+					} else {
+						ArrayList<String> holdingNodes = new ArrayList<String>();
 						holdingNodes.add(nodeIdentifier);
-				} else {
-					ArrayList<String> holdingNodes = new ArrayList<String>();
-					holdingNodes.add(nodeIdentifier);
-					networkFiles.put(fileName, holdingNodes);
-				}
-			} else {
-				// This is a dead node, so we remove it from the relevant places.
-				if(networkFiles.containsKey(fileName)) {
-					ArrayList<String> holdingNodes = networkFiles.get(fileName);
-					holdingNodes.remove(nodeIdentifier);
-					
-					// TODO: Do we want to do this?
-					if(holdingNodes.size() == 0) {
-						networkFiles.remove(fileName);
+						networkFiles.put(fileName, holdingNodes);
 					}
-				} 
+				} else {
+					// This is a dead node, so we remove it from the relevant places.
+					if(networkFiles.containsKey(fileName)) {
+						ArrayList<String> holdingNodes = networkFiles.get(fileName);
+						holdingNodes.remove(nodeIdentifier);
+						
+						// TODO: Do we want to do this?
+						if(holdingNodes.size() == 0) {
+							networkFiles.remove(fileName);
+						}
+					} 
+				}
 			}
+			
+			System.out.println("New network file locations:" + networkFiles);
+		} finally {
+			flockLock.lock();
 		}
-		
-		System.out.println("New network file locations:" + networkFiles);
 	}
 	
 	/*
