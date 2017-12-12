@@ -564,6 +564,8 @@ public class CMNode {
 			} else if(input.startsWith("cd")) {
 				String argument = input.substring(input.indexOf(" ") + 1);
 				cd(argument);
+			} else if(input.equalsIgnoreCase("ping")) {
+				pingCLI();
 			}
 			else if(input.startsWith("get") || input.startsWith("GET")) {
 				try {
@@ -628,6 +630,7 @@ public class CMNode {
 		System.out.println("`peers`: Lists all other nodes we know about");
 		System.out.println("`ddir`: Print out the current download directory");
 		System.out.println();
+		System.out.println("`ping`: Ping your shepherd. Get back a list of peers and files.");
 		System.out.println("`get (number)`: Download the corresponding file as shown in `list`");
 		System.out.println("`propose (filename)`: Propose a local file for upload into the network.");
 		
@@ -762,6 +765,20 @@ public class CMNode {
 			System.out.println("Getting: " + fileName);
 			System.out.println("Downloading into: " + downloadLocation);
 			get(fileName);
+		}
+		System.out.println("********************************");
+	}
+	
+	/*
+	 * A wrapper for ping, specifically for CLI.
+	 */
+	public void pingCLI() {
+		System.out.println("********************************");
+		System.out.println("PINGING:\n");
+		if(!isShepherd) {
+			ping(false);
+		} else {
+			System.out.println("Ping doesn't work! You're a shepherd!");
 		}
 		System.out.println("********************************");
 	}
