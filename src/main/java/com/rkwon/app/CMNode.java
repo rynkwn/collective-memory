@@ -1325,12 +1325,18 @@ public class CMNode {
 	 * and remove the ones that appear to have died.
 	 */
 	public void pruneFlock() {
+		System.out.println("\n\nBeginning to prune flock. Trying to acquire lock.");
+		
 		flockLock.lock();
 		try {
+			System.out.println("Lock acquired.");
+			
 			for(String identifier : flock.keySet()) {
+				System.out.println("Looking at node: " + identifier);
 				NodeMetadata nm = flock.get(identifier);
 				
 				if(System.currentTimeMillis() >= nm.timeConsideredDead) {
+					System.out.println("Current time exceeds node's time to live. Removing.");
 					// This node hasn't pinged us in a while. We consider it dead.
 					flock.remove(identifier);
 					HashSet<String> filesHeldByNode = filesHeld.get(identifier);
@@ -1340,7 +1346,11 @@ public class CMNode {
 				}
 			}
 		} finally {
+			System.out.println("Done pruning. Letting go of lock.");
 			flockLock.unlock();
+		}
+		if(!flockLock.isLocked()) {
+			System.out.println("Lock released.");
 		}
 	}
 	
@@ -1350,15 +1360,27 @@ public class CMNode {
 	 * and still recover all files.
 	 */
 	public void manageRedundancy() {
+		System.out.println("\n\nBeginning to manage redundancies. Trying to acquire lock.");
 		flockLock.lock();
+		
 		try {
+			System.out.println("Lock acquired.");
 			int numCopiesNeeded = (int) ((flock.size() * CMNode.CM_MAX_SURVIVABLE_DEATHS) + 1);
 			
+			System.out.println("Flock size: " + flock.size());
+			System.out.println("Copies needed: " + numCopiesNeeded);
+			System.out.println();
+			
 			for(String file : files) {
+				System.out.println("Considering file: " + file);
+				
 				ArrayList<String> holdingNodes = networkFiles.get(file);
 				int numCopies = holdingNodes.size();
+				System.out.println("Holding nodes: " + holdingNodes);
 				
 				if(numCopies < numCopiesNeeded) {
+					System.out.println("Need new copies. Selecting new nodes.");
+					
 					// Add redundancy to a few more places.
 					int numExtraCopiesNeeded = numCopiesNeeded - numCopies;
 					
@@ -1375,8 +1397,11 @@ public class CMNode {
 						potentialPeers.remove(nextNode);
 					}
 					
+					System.out.println("Selected new nodes: " + chosenNodes);
+					
 					// Now that we've chosen our nodes. Mandate they hold the file.
 					for(String node : chosenNodes) {
+						System.out.println("Mandating node: " + node + " holds file");
 						NodeMetadata nm = flock.get(node);
 						NodeMetadata holdingNode = new NodeMetadata(
 								parseNodeIdentifierData(getRandomNodeHoldingFile(file))
@@ -1387,8 +1412,15 @@ public class CMNode {
 					}
 				}
 			}
+			
+			System.out.println("Done managing files.");
 		} finally {
+			System.out.println("Trying to release lock");
 			flockLock.unlock();
+		}
+		
+		if(!flockLock.isLocked()) {
+			System.out.println("Lock released.");
 		}
 	}
 	
@@ -1728,6 +1760,7 @@ public class CMNode {
 		me.monitor();
 		
 		if(me.isShepherd) {
+			System.out.println("\n\nI'm a shepherd. Starting up management protocols.");
 			me.manageFlock();
 		}
 		
@@ -1875,6 +1908,7 @@ class ManageFlock implements Runnable {
 			try {
 				Thread.sleep(TIME_BETWEEN_CHECKS);
 				
+				System.out.println("\n\nBeginning management task...");
 				shepherd.pruneFlock();
 				shepherd.manageRedundancy();
 			} catch (InterruptedException e) {
