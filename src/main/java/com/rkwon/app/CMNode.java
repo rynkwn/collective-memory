@@ -1431,11 +1431,12 @@ public class CMNode {
 	 * then adds it to our known list of flock members.
 	 */
 	public void updateFlockMember(NodeMetadata nm) {
+		System.out.println("\n\nUpdating flock member data...");
 		
+		System.out.println("Acquiring lock.");
 		flockLock.lock();
 		
 		try {
-			System.out.println("\n\nUpdating flock member data...");
 			String identifyingData = nm.toString();
 			
 			System.out.println("Identifying data: " + identifyingData);
@@ -1460,7 +1461,12 @@ public class CMNode {
 			
 			System.out.println("Done updating flock");
 		} finally {
+			System.out.println("Releasing lock.");
 			flockLock.unlock();
+		}
+		
+		if(!flockLock.isLocked()) {
+			System.out.println("Lock released.");
 		}
 	}
 	
@@ -1474,9 +1480,11 @@ public class CMNode {
 	 * our knowledge and remove that node as a holder of the relevant files. 
 	 */
 	public void updateNetworkFileLocations(NodeMetadata node, List<String> fileNames, boolean live) {
+		System.out.println("\n\nUpdating network file locations...");
+		
+		System.out.println("Acquiring lock.");
 		flockLock.lock();
 		try {
-			System.out.println("Updating network file locations...");
 			String nodeIdentifier = node.toString();
 			
 			System.out.println("Node identifier: " + nodeIdentifier);
@@ -1524,9 +1532,15 @@ public class CMNode {
 				}
 			}
 			
+			System.out.println("Network updates done.");
 			System.out.println("New network file locations:" + networkFiles);
 		} finally {
+			System.out.println("Releasing lock.");
 			flockLock.lock();
+		}
+		
+		if(!flockLock.isLocked()) {
+			System.out.println("Lock released.");
 		}
 	}
 	
