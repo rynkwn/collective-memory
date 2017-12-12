@@ -44,6 +44,10 @@ public class CMNode {
 	// Maximum number of proposed files allowed for a node.
 	public static final int CM_MAXIMUM_PROPOSED_FILES = 10;
 	
+	// Maximum percentage of nodes that can drop simultaneously without
+	// network file loss.
+	public static final double CM_MAX_SURVIVABLE_DEATHS = .5;
+	
 	// A list of nodes to try to connect to if we can't find any through our JGroup.
 	public static final NodeMetadata[] CM_HARDCODED_NODES = {
 		new NodeMetadata("137.165.8.105", 51325), // The IP Address of red.cs.williams.edu
@@ -158,7 +162,7 @@ public class CMNode {
 	public HashMap<String, NodeMetadata> flock = new HashMap<String, NodeMetadata>();
 	
 	// Maps IP Address-port -> List of files held there.
-	public HashMap<String, ArrayList<String>> filesHeld = new HashMap<String, ArrayList<String>>();
+	public HashMap<String, HashSet<String>> filesHeld = new HashMap<String, HashSet<String>>();
 	
 	// Tracking which nodes have proposed how many files.
 	// NOTE: Key is NodeMetadata.toString().
@@ -423,6 +427,18 @@ public class CMNode {
 		Monitor monitorPhase = new Monitor(this);
 		Thread monitorThread = new Thread(monitorPhase);
 		monitorThread.start();
+	}
+	
+	/*
+	 * Meant to run on a separate thread. As shepherd, manage the flock.
+	 * 
+	 * This entails removing nodes that appear to be dead, and to replicate
+	 * files that don't have sufficient redundancy.
+	 */
+	public void manageFlock() { 
+		ManageFlock manager = new ManageFlock(this);
+		Thread managerThread = new Thread(manager);
+		managerThread.start();
 	}
 	
 	////////////////////////////////////////////////////////
@@ -1317,10 +1333,58 @@ public class CMNode {
 				if(System.currentTimeMillis() >= nm.timeConsideredDead) {
 					// This node hasn't pinged us in a while. We consider it dead.
 					flock.remove(identifier);
-					ArrayList<String> filesHeldByNode = filesHeld.get(identifier);
+					HashSet<String> filesHeldByNode = filesHeld.get(identifier);
 					filesHeld.remove(identifier);
 					
-					updateNetworkFileLocations(nm, filesHeldByNode, false);
+					updateNetworkFileLocations(nm, new ArrayList<String>(filesHeldByNode), false);
+				}
+			}
+		} finally {
+			flockLock.unlock();
+		}
+	}
+	
+	/*
+	 * A shepherd method to manage redundancies in the network.
+	 * We make sure that we can survive a simultaneous loss of X% of our nodes
+	 * and still recover all files.
+	 */
+	public void manageRedundancy() {
+		flockLock.lock();
+		try {
+			int numCopiesNeeded = (int) ((flock.size() * CMNode.CM_MAX_SURVIVABLE_DEATHS) + 1);
+			
+			for(String file : files) {
+				ArrayList<String> holdingNodes = networkFiles.get(file);
+				int numCopies = holdingNodes.size();
+				
+				if(numCopies < numCopiesNeeded) {
+					// Add redundancy to a few more places.
+					int numExtraCopiesNeeded = numCopiesNeeded - numCopies;
+					
+					// Select some nodes randomly to start storing the file.
+					ArrayList<String> potentialPeers = new ArrayList<String>(peers);
+					potentialPeers.removeAll(holdingNodes);
+					
+					ArrayList<String> chosenNodes = new ArrayList<String>();
+					
+					while(chosenNodes.size() < numExtraCopiesNeeded) {
+						int nextNode = new Random().nextInt(potentialPeers.size());
+						
+						chosenNodes.add(potentialPeers.get(nextNode));
+						potentialPeers.remove(nextNode);
+					}
+					
+					// Now that we've chosen our nodes. Mandate they hold the file.
+					for(String node : chosenNodes) {
+						NodeMetadata nm = flock.get(node);
+						NodeMetadata holdingNode = new NodeMetadata(
+								parseNodeIdentifierData(getRandomNodeHoldingFile(file))
+								);
+						
+						Packet mandatePacket = buildFileMandatePacket(holdingNode, file, nm.nodeId);
+						send(nm, mandatePacket);
+					}
 				}
 			}
 		} finally {
@@ -1409,7 +1473,22 @@ public class CMNode {
 						if(holdingNodes.size() == 0) {
 							networkFiles.remove(fileName);
 						}
-					} 
+					}
+				}
+			}
+			
+			
+			// Update filesHeld, the almost-reverse of networkFiles.
+			if(live) {
+				if(filesHeld.containsKey(nodeIdentifier)) {
+					filesHeld.get(nodeIdentifier).addAll(fileNames);
+				} else {
+					filesHeld.put(node.toString(), new HashSet<String>(fileNames));						
+				}
+			} else {
+				// If the node is dead, we just need to remove it from filesHeld
+				if(filesHeld.containsKey(nodeIdentifier)) {
+					filesHeld.remove(nodeIdentifier);
 				}
 			}
 			
@@ -1648,6 +1727,10 @@ public class CMNode {
 		// If not shepherd, just sit happy and occasionally get lists of available files. Probably.
 		me.monitor();
 		
+		if(me.isShepherd) {
+			me.manageFlock();
+		}
+		
 		
 		// Now, start up the normal CLI interface to request files, propose files, and such.
 		System.out.println("\n\nBooting up workhorse...");
@@ -1771,7 +1854,7 @@ class Monitor implements Runnable {
  * that appear to be dead and replicate files that should be replicated.
  */
 class ManageFlock implements Runnable {
-	public static final long TIME_BETWEEN_CHECKS = 20 * 1000; // Every 20 seconds.
+	public static final long TIME_BETWEEN_CHECKS = 30 * 1000; // Every 30 seconds.
 	
 	// The Shepherd that does the managing.
 	public CMNode shepherd;
@@ -1793,6 +1876,7 @@ class ManageFlock implements Runnable {
 				Thread.sleep(TIME_BETWEEN_CHECKS);
 				
 				shepherd.pruneFlock();
+				shepherd.manageRedundancy();
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
