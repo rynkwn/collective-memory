@@ -843,7 +843,21 @@ public class CMNode {
 		}
 		
 		System.out.println("I'm becoming a shepherd. Great.");
-		flock.put(this.formatNodeIdentifierData(), new NodeMetadata(ipAddress, port, nodeId, Long.MAX_VALUE));
+		
+		// Add self to flock.
+		System.out.println("Adding myself to my own flock.");
+		NodeMetadata meAsShepherd = new NodeMetadata(ipAddress, port, nodeId, Long.MAX_VALUE);
+		flock.put(this.formatNodeIdentifierData(), meAsShepherd);
+		
+		// Add any files personally stored into NetworkFiles.
+		System.out.println("Adding any files I'm storing into my knowledge of network files.");
+		ArrayList<String> filesIHold = new ArrayList<String>();
+		for(FileMetadata fm : storedFiles) {
+			filesIHold.add(fm.fileName);
+		}
+		
+		updateNetworkFileLocations(meAsShepherd, filesIHold, true);
+		
 		myShepherd = null;
 		return true;
 	}
