@@ -11,6 +11,7 @@ import nl.pvdberg.pnet.server.util.*;
 import nl.pvdberg.pnet.threading.ThreadManager;
 
 import java.util.*;
+import java.util.concurrent.locks.ReentrantLock;
 import java.net.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -121,24 +122,11 @@ public class CMNode {
 	public boolean isShepherd;
 	public NodeMetadata myShepherd;
 	
-	// Maps fileName -> Node Identifiers.
-	public HashMap<String, ArrayList<String>> networkFiles = new HashMap<String, ArrayList<String>>();
-	
-	// A list of files waiting for acceptance/rejection by the shepherd.
-	public ArrayList<String> proposedFiles = new ArrayList<String>();
-	
-	// Maps IP Address-port -> node metadata object.
-	public HashMap<String, NodeMetadata> flock = new HashMap<String, NodeMetadata>();
-	
 	// A list of known files for this node.
 	public ArrayList<String> files = new ArrayList<String>();
 	
 	// A list of network peers for this node. 
 	public ArrayList<String> peers = new ArrayList<String>();
-	
-	// Tracking which nodes have proposed how many files.
-	// NOTE: Key is NodeMetadata.toString().
-	public HashMap<String, Integer> numProposals = new HashMap<String, Integer>();
 	
 	// Directory location for user file requests:
 	// We default to where we think their downloads directory should be...
@@ -149,6 +137,30 @@ public class CMNode {
 	
 	// Special flags
 	public boolean waitingForShepherdResponse = false;
+	
+	
+	////////////////
+	//
+	// Shepherd Attributes
+	//
+	
+	public ReentrantLock flockLock = new ReentrantLock();
+	
+	// Maps fileName -> Node Identifiers.
+	public HashMap<String, ArrayList<String>> networkFiles = new HashMap<String, ArrayList<String>>();
+	
+	// A list of files waiting for acceptance/rejection by the shepherd.
+	public ArrayList<String> proposedFiles = new ArrayList<String>();
+	
+	// Maps IP Address-port -> node metadata object.
+	public HashMap<String, NodeMetadata> flock = new HashMap<String, NodeMetadata>();
+	
+	// Maps IP Address-port -> List of files held there.
+	public HashMap<String, ArrayList<String>> filesHeld = new HashMap<String, ArrayList<String>>();
+	
+	// Tracking which nodes have proposed how many files.
+	// NOTE: Key is NodeMetadata.toString().
+	public HashMap<String, Integer> numProposals = new HashMap<String, Integer>();
 	
 	// TODO: If ping responses become any more complicated, may be subject to race conditions. Careful. Or add locks.
 	public boolean waitingForPingResponse = true;
@@ -1291,32 +1303,67 @@ public class CMNode {
 	}
 	
 	/*
+	 * As shepherd, go through every node in our subnetwork/flock
+	 * and remove the ones that appear to have died.
+	 */
+	public void pruneFlock() {
+		flockLock.lock();
+		try {
+			for(String identifier : flock.keySet()) {
+				NodeMetadata nm = flock.get(identifier);
+				
+				if(System.currentTimeMillis() >= nm.timeConsideredDead) {
+					// This node hasn't pinged us in a while. We consider it dead.
+					flock.remove(identifier);
+					ArrayList<String> filesHeldByNode = filesHeld.get(identifier);
+					filesHeld.remove(identifier);
+					
+					updateNetworkFileLocations(nm, filesHeldByNode, false);
+				}
+			}
+		} finally {
+			flockLock.unlock();
+		}
+	}
+	
+	/*
 	 * If we're a shepherd, updates our flock.
 	 * 
 	 * If we already knew about nm, updates information if relevant. If we didn't,
 	 * then adds it to our known list of flock members.
 	 */
 	public void updateFlockMember(NodeMetadata nm) {
-		System.out.println("\n\nUpdating flock member data...");
-		String identifyingData = nm.toString();
 		
-		System.out.println("Identifying data: " + identifyingData);
+		flockLock.lock();
 		
-		long timeToLive = System.currentTimeMillis() + Monitor.MAXIMUM_ADDED_TIME_BETWEEN_PINGS + Monitor.MINIMUM_TIME_BETWEEN_PINGS;
-		System.out.println("Node's time to live: " + timeToLive);
-		
-		if(flock.containsKey(identifyingData)) {
-			flock.get(identifyingData).updateTimeConsideredDead(timeToLive);
-		} else {
-			nm.updateTimeConsideredDead(timeToLive);
-			System.out.println("Adding new node. Time to live: " + nm.timeConsideredDead);
-			flock.put(identifyingData, nm);
+		try {
+			System.out.println("\n\nUpdating flock member data...");
+			String identifyingData = nm.toString();
+			
+			System.out.println("Identifying data: " + identifyingData);
+			
+			// We're reasonably generous about this.
+			long timeToLive = System.currentTimeMillis() + 
+					Monitor.MAXIMUM_ADDED_TIME_BETWEEN_PINGS + 
+					(2 * Monitor.MINIMUM_TIME_BETWEEN_PINGS);
+			System.out.println("Node's time to live: " + timeToLive);
+			
+			if(flock.containsKey(identifyingData)) {
+				flock.get(identifyingData).updateTimeConsideredDead(timeToLive);
+			} else {
+				nm.updateTimeConsideredDead(timeToLive);
+				System.out.println("Adding new node. Time to live: " + nm.timeConsideredDead);
+				flock.put(identifyingData, nm);
+			}
+			
+			// If we already know about this peer, we shouldn't re-add it.
+			if(!peers.contains(nm.toString())) 
+				peers.add(nm.toString());
+			
+			System.out.println("Done updating flock");
+		} finally {
+			flockLock.unlock();
 		}
-		
-		if(!peers.contains(nm.toString())) 
-			peers.add(nm.toString());
-		
-		System.out.println("Done updating flock");
 	}
 	
 	/*
@@ -1642,8 +1689,8 @@ public class CMNode {
 class Monitor implements Runnable {
 	
 	// Every so often, ping our shepherd if we're not a shepherd.
-	public static final long MINIMUM_TIME_BETWEEN_PINGS = 60 * 1000;
-	public static final long MAXIMUM_ADDED_TIME_BETWEEN_PINGS = 300 * 1000;
+	public static final long MINIMUM_TIME_BETWEEN_PINGS = 10 * 1000;
+	public static final long MAXIMUM_ADDED_TIME_BETWEEN_PINGS = 30 * 1000;
 	
 	// The node doing the monitoring.
 	public CMNode node;
@@ -1709,5 +1756,39 @@ class Monitor implements Runnable {
 			}
 		}
 	}
+}
+
+/*
+ * ManageFlock is a Shepherd thread. Specifically, every so often
+ * the shepherd should look through its flock, remove the nodes
+ * that appear to be dead and replicate files that should be replicated.
+ */
+class ManageFlock implements Runnable {
+	public static final long TIME_BETWEEN_CHECKS = 20 * 1000; // Every 20 seconds.
 	
+	// The Shepherd that does the managing.
+	public CMNode shepherd;
+	
+	public ManageFlock(CMNode node) {
+		this.shepherd = node;
+	}
+
+	/*
+	 * This method is meant to run on a separate thread.
+	 * 
+	 * This method periodically checks over the network members, removes knowledge
+	 * of ones who appear to be dead, and replicates files if they fall beneath a
+	 * redundancy threshold.
+	 */
+	public void run() {
+		while(true) {
+			try {
+				Thread.sleep(TIME_BETWEEN_CHECKS);
+				
+				shepherd.pruneFlock();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+	}
 }
