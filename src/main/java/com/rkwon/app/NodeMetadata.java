@@ -69,6 +69,14 @@ public class NodeMetadata {
 	}
 	
 	/*
+	 * Compares this NodeMetadata with another one, specifically
+	 * by comparing IP Addresses.
+	 */
+	public int compare(NodeMetadata nm) {
+		return compareIpAddresses(nm.ipAddress);
+	}
+	
+	/*
 	 * Returns ipAddress-port-nodeId
 	 * 
 	 * 

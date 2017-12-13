@@ -56,6 +56,9 @@ public class CMNode {
 	// Otherwise, we assume our shepherd is dead.
 	public static final long CM_TIME_TO_WAIT_FOR_SHEPHERD_HEARTBEAT_RESPONSE = 30 * 1000;
 	
+	// How long should we wait between "election rounds"?
+	public static final long CM_ELECTION_ROUND_TIME = 5 * 1000;
+	
 	// A list of nodes to try to connect to if we can't find any through our JGroup.
 	public static final NodeMetadata[] CM_HARDCODED_NODES = {
 		new NodeMetadata("137.165.8.105", 51325), // The IP Address of red.cs.williams.edu
@@ -196,6 +199,10 @@ public class CMNode {
 	public boolean shepherdIsDead = false;
 	
 	public NodeMetadata nominatedShepherd = null;
+	public HashSet<String> peersVotingForMe = new HashSet<String>();
+	
+	// Locks peersVotingForMe, as that can be added to by another thread.
+	public ReentrantLock electionLock = new ReentrantLock();
 
 
 	/*
@@ -222,7 +229,7 @@ public class CMNode {
 												// to.
 			System.out.println("My chosen port number is: " + port);
 			
-			peers.add(formatNodeIdentifierData());
+			addPeer(formatNodeIdentifierData());
 
 			// Start server to receive future packets.
 			server = new PlainServer();
@@ -537,15 +544,26 @@ public class CMNode {
 			// Go through all our peers, and tell them who our
 			// nominated shepherd is.
 			for(String peer : peers) {
-				NodeMetadata peerNode = new NodeMetadata(parseNodeIdentifierData(peer));
-				Packet informShepherdDeathPacket = buildInformShepherdDeathPacket(nominatedShepherd);
-				send(peerNode, informShepherdDeathPacket);
+				
+				// First, check that the peer we're informing isn't us.
+				if(! peer.equals(formatNodeIdentifierData())) {
+					
+					// Tell them who our choice of shepherd is.
+					NodeMetadata peerNode = new NodeMetadata(parseNodeIdentifierData(peer));
+					Packet informShepherdDeathPacket = buildInformShepherdDeathPacket(nominatedShepherd, false);
+					send(peerNode, informShepherdDeathPacket);
+				}
 			}
 			
 			// Then, check to see if we're shepherd.
 			
 			// Then, check to see if our nominated shepherd is shepherd.
 			
+			try {
+				Thread.sleep(CMNode.CM_ELECTION_ROUND_TIME);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 	
@@ -579,6 +597,7 @@ public class CMNode {
 		
 		System.out.println("No pings received back. Assume that Shepherd is dead.");
 		shepherdIsDead = true;
+		peers.remove(myShepherd.toString());
 		return false;
 	}
 	
@@ -980,7 +999,7 @@ public class CMNode {
 			waitingForShepherdResponse = false;
 			discoverNewShepherd(proposedShepherd); //TODO: Do I need this?
 			myShepherd = proposedShepherd;
-			peers.add(myShepherd.toString());
+			addPeer(myShepherd.toString());
 			ping(false);
 			
 			System.out.println("New shepherd set.");
@@ -1367,12 +1386,14 @@ public class CMNode {
 	 * Format the relevant data when informing another node of shepherd death
 	 * and who this node believes should be the new shepherd.
 	 */
-	public String formatInformShepherdDeathMessage(NodeMetadata nominatedShepherd) {
+	public String formatInformShepherdDeathMessage(NodeMetadata nominatedShepherd,
+												   boolean response
+												   ) {
 		NodeMetadata sender = new NodeMetadata(ipAddress, port);
 		
 		GsonBuilder builder = new GsonBuilder();
 		Gson gson = builder.create();
-		return gson.toJson(new InformShepherdDeathData(sender, nominatedShepherd));
+		return gson.toJson(new InformShepherdDeathData(sender, nominatedShepherd, response));
 	}
 	
 	/*
@@ -1615,8 +1636,7 @@ public class CMNode {
 			}
 			
 			// If we already know about this peer, we shouldn't re-add it.
-			if(!peers.contains(nm.toString())) 
-				peers.add(nm.toString());
+			addPeer(nm.toString());
 			
 			System.out.println("Done updating flock");
 		} finally {
@@ -1830,6 +1850,16 @@ public class CMNode {
 	}
 	
 	/*
+	 * Adds a peer to our list of peers. If we already know about the peer,
+	 * we don't add it.
+	 */
+	public void addPeer(String peer) {
+		if(! peers.contains(peer)) {
+			peers.add(peer);
+		}
+	}
+	
+	/*
 	 * SHEPHERD METHOD.
 	 * 
 	 * Given all the nodes holding the file, choose one at random and return its identifier
@@ -1913,10 +1943,14 @@ public class CMNode {
 	/*
 	 * Build a packet to nominate another node for shepherd.
 	 */
-	public Packet buildInformShepherdDeathPacket(NodeMetadata nominatedShepherd) {
+	public Packet buildInformShepherdDeathPacket(NodeMetadata nominatedShepherd,
+												 boolean response
+												 ) {
 		return new PacketBuilder(Packet.PacketType.Request)
 								.withID(CMNode.PACKET_INFORM_SHEPHERD_DEATH_REQUEST_ID)
-								.withString(formatInformShepherdDeathMessage(nominatedShepherd))
+								.withString(formatInformShepherdDeathMessage(nominatedShepherd, 
+																			 response
+																			 ))
 								.build();
 	}
 

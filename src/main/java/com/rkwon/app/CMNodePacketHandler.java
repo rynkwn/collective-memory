@@ -496,14 +496,53 @@ class CMNodeInformShepherdDeath implements PacketHandler {
 	 * Client c is the sender
 	 */
 	public void handlePacket(final Packet p, final Client c) throws IOException {
-		System.out.println("\n\n Receiving nomination...");
+		System.out.println("\n\nSomeone told me the shepherd is dead...");
 		
 		PacketReader reader = new PacketReader(p);
 		
-		HashMap<String, String> parsedData = host.parseNodeIdentifierData(reader.readString());
+		InformShepherdDeathData data = host.parseShepherdDeathMessage(reader.readString());
 		
-		NodeMetadata sender = new NodeMetadata(parsedData);
+		NodeMetadata sender = data.sender;
+		NodeMetadata theirProposal = data.nominatedShepherd;
 		
-		// See if our shepherd is dead.
+		if(host.shepherdIsDead) {
+			// Only respond if we register our shepherd as being dead.
+			// If we never respond... the implication is that our shepherd is alive.
+			// That other node... is suffering some awful luck.
+			
+			// Check if the InformShepherdDeath was a response. In which case
+			// Check to see if our node is higher priority than theirs.
+			if(data.response) {
+				// If their proposal is us, note that.
+				if(theirProposal.toString().equals(host.formatNodeIdentifierData())) {
+					host.peersVotingForMe.add(sender.toString());
+				} else {
+					
+					// Check to see if their proposal is higher than ours.
+					// If so, add their node to our known list of peers and modify
+					// our nominated shepherd.
+					if(theirProposal.compare(host.nominatedShepherd) > 0) {
+						host.addPeer(theirProposal.toString());
+						host.nominatedShepherd = theirProposal;
+					}
+				}
+				
+			} else {
+				// If it's not a response, they're telling us who their 
+				// highest known peer is. If we don't know about it,
+				// update our list of peers and update our nominated shepherd.
+				NodeMetadata proposal = host.findHighestPeer();
+				
+				if(proposal.compare(theirProposal) < 0) {
+					// They have a better node than ours, so we probably don't
+					// know this peer.
+					host.addPeer(theirProposal.toString());
+					host.nominatedShepherd = theirProposal;
+				}
+				
+				Packet informShepherdDeathPacket = host.buildInformShepherdDeathPacket(proposal, true);
+				host.send(sender, informShepherdDeathPacket);
+			}
+		}
 	}
 }

@@ -7,9 +7,11 @@ public class InformShepherdDeathData {
 	
 	public NodeMetadata sender;
 	public NodeMetadata nominatedShepherd;
+	public boolean response;
 	
-	public InformShepherdDeathData(NodeMetadata sender, NodeMetadata nominatedShep) {
+	public InformShepherdDeathData(NodeMetadata sender, NodeMetadata nominatedShep, boolean response) {
 		this.sender = sender;
 		this.nominatedShepherd = nominatedShep;
+		this.response = response;
 	}
 }
