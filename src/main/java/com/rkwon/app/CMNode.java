@@ -568,6 +568,7 @@ public class CMNode {
 				// Then check that the nominated shepherd should be us, and that
 				// we're the only one not voting for us.
 				if(nominatedShepherd.toString().equals(formatNodeIdentifierData()) &&
+						notVotingForMe.size() == 1 &&
 						notVotingForMe.get(0).equals(formatNodeIdentifierData())) {
 					
 					System.out.println("We won the election this round.");
@@ -658,6 +659,8 @@ public class CMNode {
 		
 		System.out.println("No pings received back. Assume that Shepherd is dead.");
 		shepherdIsDead = true;
+		shepherdNodes.remove(myShepherd);
+		myShepherd = null;
 		peers.remove(myShepherd.toString());
 		return false;
 	}
