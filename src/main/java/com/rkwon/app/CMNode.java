@@ -1828,10 +1828,10 @@ public class CMNode {
 	/*
 	 * Build a packet to nominate another node for shepherd.
 	 */
-	public Packet buildInformShepherdDeathPacket() {
+	public Packet buildInformShepherdDeathPacket(NodeMetadata nominatedShepherd) {
 		return new PacketBuilder(Packet.PacketType.Request)
 								.withID(CMNode.PACKET_INFORM_SHEPHERD_DEATH_REQUEST_ID)
-								.withString(formatNodeIdentifierData())
+								.withString(formatInformShepherdDeathMessage(nominatedShepherd))
 								.build();
 	}
 
