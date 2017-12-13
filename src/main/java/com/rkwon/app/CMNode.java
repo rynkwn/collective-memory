@@ -201,9 +201,6 @@ public class CMNode {
 	
 	public NodeMetadata nominatedShepherd = null;
 	public HashSet<String> peersVotingForMe = new HashSet<String>();
-	
-	// Locks peersVotingForMe, as that can be added to by another thread.
-	public ReentrantLock electionLock = new ReentrantLock();
 
 
 	/*
@@ -561,8 +558,8 @@ public class CMNode {
 			}
 			
 			// Then, check to see if we're shepherd.
-			if(peers.size() - peersVotingForMe.size() == 1) {
-				ArrayList<String> notVotingForMe = new ArrayList(peers);
+			if(peers.size() - peersVotingForMe.size() <= 1) {
+				ArrayList<String> notVotingForMe = new ArrayList<String>(peers);
 				notVotingForMe.removeAll(peersVotingForMe);
 				
 				// Then check that the nominated shepherd should be us, and that
@@ -574,12 +571,19 @@ public class CMNode {
 						// We've already won the election. Now it's official.
 						shepherdTest();
 						
+						Packet electedPacket = buildElectionResultPacket(nominatedShepherd,
+																		 true,
+																		 false,
+																		 false);
+						
 						// Then tell everyone that I accepted their nomination.
 						for(String peer : peers) {
-							// TODO: Tell everyone I accepted.
+							NodeMetadata peerNode = new NodeMetadata(parseNodeIdentifierData(peer));
+							send(peerNode, electedPacket);							
 						}
 						
 						inElectionCycle = false;
+						break;
 					}
 					
 					// Clear peersVotingForMe and update expectingToBeSheperd.
@@ -598,8 +602,11 @@ public class CMNode {
 			}
 			
 			// Ask our nominated shepherd if they were successful.
-			// TODO: Ask nominated shepherd on success. Note them as my shepherd if
-			// successful.
+			Packet electionQueryPacket = buildElectionResultPacket(null,
+																   false,
+																   true,
+																   false);
+			send(nominatedShepherd, electionQueryPacket);
 			
 			try {
 				Thread.sleep(CMNode.CM_ELECTION_ROUND_TIME);
@@ -1490,9 +1497,15 @@ public class CMNode {
 	 */
 	public String formatElectionResult(NodeMetadata electedShepherd,
 									   boolean completed,
-									   boolean response
+									   boolean isQuery,
+									   boolean isResponse
 									   ) {
-		ElectionResultData erd = new ElectionResultData(electedShepherd, completed, response);
+		ElectionResultData erd = new ElectionResultData(electedShepherd,
+														new NodeMetadata(ipAddress, port),
+														completed, 
+														isQuery, 
+														isResponse
+														);
 		
 		GsonBuilder builder = new GsonBuilder();
 		Gson gson = builder.create();
@@ -2026,13 +2039,15 @@ public class CMNode {
 	 */
 	public Packet buildElectionResultPacket(NodeMetadata electedShepherd,
 											boolean completed,
-											boolean response
+											boolean isQuery,
+											boolean isResponse
 											) {
 		return new PacketBuilder(Packet.PacketType.Request)
 								.withID(CMNode.PACKET_ELECTION_RESULT_ID)
 								.withString(formatElectionResult(electedShepherd,
 																 completed,
-																 response))
+																 isQuery,
+																 isResponse))
 								.build();
 	}
 

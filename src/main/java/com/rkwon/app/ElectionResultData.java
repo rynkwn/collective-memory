@@ -6,12 +6,20 @@ package com.rkwon.app;
 public class ElectionResultData {
 	
 	public NodeMetadata electedShepherd;
-	public boolean electionCompleted;
-	public boolean response;
+	public NodeMetadata sender;
+	public boolean completed;
+	public boolean isQuery; 
+	public boolean isResponse;
 
-	public ElectionResultData(NodeMetadata electedShepherd, boolean electionCompleted, boolean response) {
+	public ElectionResultData(NodeMetadata electedShepherd,
+							  NodeMetadata sender,
+							  boolean completed,
+							  boolean isQuery, 
+							  boolean isResponse) {
 		this.electedShepherd = electedShepherd;
-		this.electionCompleted = electionCompleted;
-		this.response = response;
+		this.sender = sender;
+		this.completed = completed;
+		this.isQuery = isQuery;
+		this.isResponse = isResponse;
 	}
 }

@@ -565,13 +565,56 @@ class CMNodeElectionResultHandler implements PacketHandler {
 	}
 	
 	/*
-	 * Client c is the sender
+	 * Two cases:
+	 * 1) Someone is telling us they were elected.
+	 * 	-> Doesn't require response.
+	 * 2) Someone is asking if we were elected.
+	 * 	-> Requires response.
 	 */
 	public void handlePacket(final Packet p, final Client c) throws IOException {
-		System.out.println("\n\nReceiving ping response...");
+		System.out.println("\n\nReceiving election result request...");
 		
 		PacketReader reader = new PacketReader(p);
 		
+		ElectionResultData data = host.parseElectionResult(reader.readString());
 		
+		NodeMetadata sender = data.sender;
+		
+		// TODO: Overall, this part of the process is very fragile. Specifically,
+		// I'm worried about a node not being informed that the election is complete.
+		
+		if(data.isQuery) {
+			System.out.println("Someone is asking if we won the election.");
+			
+			// Someone is asking if we won the election.
+			if(host.isShepherd) {
+				System.out.println("We did. Responding.");
+				Packet electionResultPacket = host.buildElectionResultPacket(new NodeMetadata(host.ipAddress, host.port), 
+						true, 
+						false, 
+						true
+						);
+				
+				host.send(sender, electionResultPacket);
+			}
+		} else if(data.completed) {
+			System.out.println("Election appears to be over.");
+			// Someone is telling us that they believe the election is over.
+			NodeMetadata electedShepherd = data.electedShepherd;
+			
+			if(electedShepherd != null) {
+				
+				// TODO: This might be dangerous. Maybe it should be EXACTLY the node we nominated.
+				if(electedShepherd.compare(host.nominatedShepherd) >= 0) {
+					// Their shepherd is at least as good as my shepherd, so I accept.
+					host.inElectionCycle = false;
+					host.waitingForShepherdResponse = true;
+					host.setShepherd(electedShepherd);
+				}
+			} else {
+				System.out.println("Their proposed shepherd is worse than our nominated shepherd.");
+				System.out.println("Rejecting.");
+			}
+		}
 	}
 }
