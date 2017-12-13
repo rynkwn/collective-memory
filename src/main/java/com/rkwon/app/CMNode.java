@@ -59,8 +59,9 @@ public class CMNode {
 	// How long should we wait between "election rounds"?
 	public static final long CM_ELECTION_ROUND_TIME = 5 * 1000;
 	
+	// TODO: Make this less hacky. It's not final so we can change it if we specify an ip address and port.
 	// A list of nodes to try to connect to if we can't find any through our JGroup.
-	public static final NodeMetadata[] CM_HARDCODED_NODES = {
+	public static NodeMetadata[] CM_HARDCODED_NODES = {
 		new NodeMetadata("137.165.8.105", 51325), // The IP Address of red.cs.williams.edu
 	};
 	
@@ -246,6 +247,9 @@ public class CMNode {
 			
 			packetDistributer.addHandler(PACKET_PING_REQUEST_ID, new CMNodePingHandler(this));
 			packetDistributer.addHandler(PACKET_PING_RESPONSE_ID, new CMNodePingResponseHandler(this));
+			
+			packetDistributer.addHandler(PACKET_INFORM_SHEPHERD_DEATH_REQUEST_ID, new CMNodeInformShepherdDeathHandler(this));
+			packetDistributer.addHandler(PACKET_ELECTION_RESULT_ID, new CMNodeElectionResultHandler(this));
 			
 			server.setListener(new DistributerListener(packetDistributer));
 			server.start(port);
@@ -2085,6 +2089,24 @@ public class CMNode {
 	//
 
 	public static void main(String[] args) {
+		if(args.length == 2) {
+			System.out.println("Using provided ipAddress and port for first node connection if needed");
+			System.out.println("IP address: " + args[0]);
+			System.out.println("Port: " + args[1]);
+			
+			NodeMetadata nm = new NodeMetadata(args[0], Integer.parseInt(args[1]));
+			NodeMetadata[] nodesToTryJoining = new NodeMetadata[CMNode.CM_HARDCODED_NODES.length + 1];
+			nodesToTryJoining[0] = nm;
+			
+			for(int i = 1; i < nodesToTryJoining.length; i++) {
+				nodesToTryJoining[i] = CMNode.CM_HARDCODED_NODES[i-1];
+			}
+			
+			CMNode.CM_HARDCODED_NODES = nodesToTryJoining;
+		} else {
+			System.out.println("Incorrect number of arguments or no arguments given. Going with default.");
+		}
+		
 		// Create myself as a CMNode.
 		CMNode me = new CMNode();
 		
