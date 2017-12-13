@@ -566,7 +566,7 @@ public class CMNode {
 				// Then check that the nominated shepherd should be us, and that
 				// we're the only one not voting for us.
 				if(nominatedShepherd.toString().equals(formatNodeIdentifierData()) &&
-						peersVotingForMe.equals(formatNodeIdentifierData())) {
+						notVotingForMe.get(0).equals(formatNodeIdentifierData())) {
 					
 					System.out.println("We won the election this round.");
 					
@@ -574,6 +574,7 @@ public class CMNode {
 						// We've already won the election. Now it's official.
 						shepherdTest();
 						
+						System.out.println("We're informing others that we won the election");
 						Packet electedPacket = buildElectionResultPacket(nominatedShepherd,
 																		 true,
 																		 false,
@@ -606,12 +607,15 @@ public class CMNode {
 				}
 			}
 			
-			// Ask our nominated shepherd if they were successful.
-			Packet electionQueryPacket = buildElectionResultPacket(null,
-																   false,
-																   true,
-																   false);
-			send(nominatedShepherd, electionQueryPacket);
+			// Ask our nominated shepherd if they were successful, if they're not us.
+			if(! nominatedShepherd.toString().equals(formatNodeIdentifierData())) {
+				Packet electionQueryPacket = buildElectionResultPacket(null,
+																	   false,
+																	   true,
+																	   false);
+				
+				send(nominatedShepherd, electionQueryPacket);
+			}
 			
 			try {
 				Thread.sleep(CMNode.CM_ELECTION_ROUND_TIME);
