@@ -54,7 +54,7 @@ public class CMNode {
 	
 	// We wait 30 seconds after we send our ping packet for a response.
 	// Otherwise, we assume our shepherd is dead.
-	public static final long CM_TIME_TO_WAIT_FOR_SHEPHERD_HEARTBEAT_RESPONSE = 30 * 1000;
+	public static final long CM_TIME_TO_WAIT_FOR_SHEPHERD_HEARTBEAT_RESPONSE = 10 * 1000;
 	
 	// How long should we wait between "election rounds"?
 	public static final long CM_ELECTION_ROUND_TIME = 5 * 1000;
