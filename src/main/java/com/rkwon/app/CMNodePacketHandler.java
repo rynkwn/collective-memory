@@ -61,7 +61,7 @@ class CMNodeDirectJoinHandler implements PacketHandler {
 										.withString(shepherd.toString())
 										.build();
 		
-		host.send(newNode, setShepherdRequest);
+		host.send(newNode, setShepherdRequest, false);
 	}
 }
 
@@ -198,7 +198,7 @@ class CMNodeRequestFileHandler implements PacketHandler {
 												.withBytes(fileRepresentation)
 												.build();
 				
-				host.send(requestingNode, filePacket);
+				host.send(requestingNode, filePacket, false);
 				success = true;
 			}
 		} else {
@@ -209,7 +209,7 @@ class CMNodeRequestFileHandler implements PacketHandler {
 				String identifier = host.getRandomNodeHoldingFile(fileName);
 				NodeMetadata nodeHoldingFile = new NodeMetadata(host.parseNodeIdentifierData(identifier));
 				
-				host.send(nodeHoldingFile, p);
+				host.send(nodeHoldingFile, p, false);
 			}
 		}
 		
@@ -423,7 +423,7 @@ class CMNodePingHandler implements PacketHandler {
 			host.updateNetworkFileLocations(node, fileNames, true);
 			
 			Packet response = host.buildPingResponsePacket(nodeId);
-			host.send(node, response);
+			host.send(node, response, false);
 		} else {
 			System.out.println("We're not a shepherd. Ignoring ping!");
 		}
@@ -544,7 +544,7 @@ class CMNodeInformShepherdDeathHandler implements PacketHandler {
 				}
 				
 				Packet informShepherdDeathPacket = host.buildInformShepherdDeathPacket(proposal, true);
-				host.send(sender, informShepherdDeathPacket);
+				host.send(sender, informShepherdDeathPacket, false);
 			}
 		}
 	}
@@ -595,7 +595,7 @@ class CMNodeElectionResultHandler implements PacketHandler {
 						true
 						);
 				
-				host.send(sender, electionResultPacket);
+				host.send(sender, electionResultPacket, false);
 			}
 		} else if(data.completed) {
 			System.out.println("Election appears to be over.");

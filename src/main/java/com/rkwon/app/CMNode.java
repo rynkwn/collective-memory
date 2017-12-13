@@ -346,7 +346,7 @@ public class CMNode {
 					
 					// If we successfully connect and send them a joinDirectRequest packet, 
 					// we break.
-					if(send(nm, joinDirectRequestPacket)) {
+					if(send(nm, joinDirectRequestPacket, false)) {
 						waitingForShepherdResponse = true;
 						break;
 					}
@@ -367,7 +367,7 @@ public class CMNode {
 		// Attempt to connect to the new node.
 		System.out.println("\n\nResponding to join request...");
 		NodeMetadata nm = new NodeMetadata(inviteeIPAddress, port);		
-		send(nm, joinAcceptPacket);
+		send(nm, joinAcceptPacket, false);
 	}
 
 	/*
@@ -485,7 +485,7 @@ public class CMNode {
 			
 			if(file != null) {
 				System.out.println("Conversion successful. Preparing to send.");
-				send(myShepherd, buildFileProposalPacket(fileName, file));
+				send(myShepherd, buildFileProposalPacket(fileName, file), false);
 			} else {
 				System.out.println("Conversion failed.");
 			}
@@ -501,7 +501,7 @@ public class CMNode {
 		if(async) {
 			asyncSend(myShepherd, buildPingPacket());
 		} else {
-			send(myShepherd, buildPingPacket());
+			send(myShepherd, buildPingPacket(), false);
 		}
 	}
 	
@@ -544,6 +544,8 @@ public class CMNode {
 		
 		while(inElectionCycle) {			
 			
+			System.out.println("Beginning the election round. Talking with the other nodes.");
+			
 			// Go through all our peers, and tell them who our
 			// nominated shepherd is.
 			for(String peer : peers) {
@@ -554,7 +556,7 @@ public class CMNode {
 					// Tell them who our choice of shepherd is.
 					NodeMetadata peerNode = new NodeMetadata(parseNodeIdentifierData(peer));
 					Packet informShepherdDeathPacket = buildInformShepherdDeathPacket(nominatedShepherd, false);
-					send(peerNode, informShepherdDeathPacket);
+					send(peerNode, informShepherdDeathPacket, true);
 				}
 			}
 			
@@ -584,7 +586,7 @@ public class CMNode {
 						for(String peer : peers) {
 							if(! peer.equals(formatNodeIdentifierData())) {
 								NodeMetadata peerNode = new NodeMetadata(parseNodeIdentifierData(peer));
-								send(peerNode, electedPacket);
+								send(peerNode, electedPacket, false);
 							}							
 						}
 						
@@ -609,12 +611,13 @@ public class CMNode {
 			
 			// Ask our nominated shepherd if they were successful, if they're not us.
 			if(! nominatedShepherd.toString().equals(formatNodeIdentifierData())) {
+				System.out.println("Asking our nomination if they won.");
 				Packet electionQueryPacket = buildElectionResultPacket(null,
 																	   false,
 																	   true,
 																	   false);
 				
-				send(nominatedShepherd, electionQueryPacket);
+				send(nominatedShepherd, electionQueryPacket, false);
 			}
 			
 			try {
@@ -1244,12 +1247,9 @@ public class CMNode {
 	/*
 	 * Synchronously send a message to node nm.
 	 */
-	public boolean send(NodeMetadata nm, Packet data) {
+	public boolean send(NodeMetadata nm, Packet data, boolean dropNodeIfFails) {
 		String ipAddress = nm.ipAddress;
 		int port = nm.port;
-		
-		// _TODO_: Find out if this is actually synchronous or not. Given that we have an async client.
-		// Seems synchronous.
 
 		// Connect to the node.
 		System.out.println("Attempting connection to " + ipAddress + ":" + port);
@@ -1262,6 +1262,12 @@ public class CMNode {
 		System.out.println("Send status: " + sendStatus);
 		
 		client.close();
+		
+		// If we can't connect, we assume they're dead. We drop them if we're told to.
+		if(!connectStatus && dropNodeIfFails) {
+			removePeer(nm.toString());
+		}
+		
 		return connectStatus && sendStatus;
 	}
 	
@@ -1676,7 +1682,7 @@ public class CMNode {
 								);
 						
 						Packet mandatePacket = buildFileMandatePacket(holdingNode, file, nm.nodeId);
-						send(nm, mandatePacket);
+						send(nm, mandatePacket, false);
 					}
 				}
 			}
@@ -1836,7 +1842,7 @@ public class CMNode {
 		Packet fileRequestPacket = buildFileRequestPacket(fileName);
 		
 		System.out.println("Sending packet...");
-		send(nm, fileRequestPacket);
+		send(nm, fileRequestPacket, false);
 		System.out.println("Packet sent.");
 	}
 	
@@ -1944,6 +1950,15 @@ public class CMNode {
 	public void addPeer(String peer) {
 		if(! peers.contains(peer)) {
 			peers.add(peer);
+		}
+	}
+	
+	/*
+	 * Remove a peer from our list of peers if it exists.
+	 */
+	public void removePeer(String peer) {
+		if(peers.contains(peer)) {
+			peers.remove(peer);
 		}
 	}
 	
