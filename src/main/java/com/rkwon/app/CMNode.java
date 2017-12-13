@@ -1895,6 +1895,14 @@ public class CMNode {
 			FileMetadata fm = new FileMetadata(fileName, newFilePath);
 			storedFiles.add(fm);
 			files.add(fm.fileName);
+			
+			// Update network files if we're a shepherd.
+			if(isShepherd) {
+				ArrayList<String> holdingNodes = new ArrayList<String>();
+				holdingNodes.add(formatNodeIdentifierData());
+				networkFiles.put(fm.fileName, holdingNodes);
+			}
+			
 			saveStoredFiles();
 		} catch (IOException e) {
 			e.printStackTrace();
