@@ -48,6 +48,14 @@ public class CMNode {
 	// network file loss.
 	public static final double CM_MAX_SURVIVABLE_DEATHS = .5;
 	
+	// If we're checking whether our shepherd is alive, we'll check at most
+	// this many times.
+	public static final int CM_MAX_ATTEMPTS_TO_CHECK_SHEPHERD_LIFE = 3;
+	
+	// We wait 30 seconds after we send our ping packet for a response.
+	// Otherwise, we assume our shepherd is dead.
+	public static final long CM_TIME_TO_WAIT_FOR_SHEPHERD_HEARTBEAT_RESPONSE = 30 * 1000;
+	
 	// A list of nodes to try to connect to if we can't find any through our JGroup.
 	public static final NodeMetadata[] CM_HARDCODED_NODES = {
 		new NodeMetadata("137.165.8.105", 51325), // The IP Address of red.cs.williams.edu
@@ -170,15 +178,25 @@ public class CMNode {
 	// Tracking which nodes have proposed how many files.
 	// NOTE: Key is NodeMetadata.toString().
 	public HashMap<String, Integer> numProposals = new HashMap<String, Integer>();
+
+	////////////////
+	//
+	// Special Flags
+	//
 	
 	// TODO: If ping responses become any more complicated, may be subject to race conditions. Careful. Or add locks.
 	public boolean waitingForPingResponse = true;
 	public boolean receivedPingResponse = false;
+	
+	////////////////
+	//
+	// Election Procedure Attributes
+	//
 	public boolean inElectionCycle = false;
+	public boolean shepherdIsDead = false;
+	
+	public NodeMetadata nominatedShepherd = null;
 
-	// NOTES TO SELF:
-	// https://github.com/PvdBerg1998/PNet#creating-a-server
-	// For TCP Connections.
 
 	/*
 	 * Perform initial setup and attribute creation.
@@ -495,6 +513,73 @@ public class CMNode {
 		} else {
 			requestFile(myShepherd, fileName, false);
 		}
+	}
+	
+	/*
+	 * The election procedure. The idea is that we culminate in electing exactly
+	 * one Shepherd: the node with the highest IP address in the network.
+	 * 
+	 * However, there exists edge cases where the highest IP address node may not
+	 * be elected. For example, if node A knows about other nodes, and has the highest
+	 * IP address, but no other node knows A. In that case, A may not be elected
+	 * unless it joins the election cycle early enough that the other nodes have not
+	 * reached consensus.
+	 */
+	public void electionProcedure() {
+		
+		// Note: this may be subject to something of a race condition.
+		// Specifically, we'll allow this to be changed by another thread
+		// when we get InformShepherdDeath responses.
+		nominatedShepherd = findHighestPeer();
+		
+		while(inElectionCycle) {
+			
+			// Go through all our peers, and tell them who our
+			// nominated shepherd is.
+			for(String peer : peers) {
+				NodeMetadata peerNode = new NodeMetadata(parseNodeIdentifierData(peer));
+				Packet informShepherdDeathPacket = buildInformShepherdDeathPacket(nominatedShepherd);
+				send(peerNode, informShepherdDeathPacket);
+			}
+			
+			// Then, check to see if we're shepherd.
+			
+			// Then, check to see if our nominated shepherd is shepherd.
+			
+		}
+	}
+	
+	/*
+	 * Returns true if shepherd appears to be alive.
+	 * 
+	 * Otherwise, returns false.
+	 */
+	public boolean checkShepherdLife() {
+		System.out.println("\n\nChecking if shepherd is still alive...");
+		
+		waitingForPingResponse = true;
+		receivedPingResponse = false;
+		
+		for(int i = 0; i < CMNode.CM_MAX_ATTEMPTS_TO_CHECK_SHEPHERD_LIFE; i++) {
+			System.out.println("Sending ping to check for life..");
+			ping(false);
+			
+			try {
+				Thread.sleep(CM_TIME_TO_WAIT_FOR_SHEPHERD_HEARTBEAT_RESPONSE);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			
+			if(receivedPingResponse) {
+				System.out.println("Ping received back! Shepherd is alive.");
+				shepherdIsDead = false;
+				return true;
+			}
+		}
+		
+		System.out.println("No pings received back. Assume that Shepherd is dead.");
+		shepherdIsDead = true;
+		return false;
 	}
 	
 	////////////////////////////////////////////////////////
@@ -1908,26 +1993,22 @@ class Monitor implements Runnable {
 					// Also to reduce number of pings in general.
 					Random rand = new Random();
 					long randomAdditionalTime = (long)(rand.nextDouble() * MAXIMUM_ADDED_TIME_BETWEEN_PINGS);
+					boolean shepherdAlive = true;
 					
 					try {
 						Thread.sleep(MINIMUM_TIME_BETWEEN_PINGS + randomAdditionalTime);
-						node.waitingForPingResponse = true;
-						node.receivedPingResponse = false;
 						
-						// We wait 30 seconds after we send our ping packet for a response.
-						// Otherwise, we assume our shepherd is dead.
-						long timeToWaitForResponse = 30 * 1000;
+						shepherdAlive = node.checkShepherdLife();
 						
-						node.send(node.myShepherd, node.buildPingPacket());
-						
-						// Wait for response.
-						Thread.sleep(timeToWaitForResponse);
-						
-						if(!node.receivedPingResponse) {
-							// If we don't get a ping response, assume server is dead.
-							// TODO: This may be a bit too aggressive. Should do multiple pings.
+						if(!shepherdAlive) {
+							// Our shepherd is dead. Trigger the election cycle.
+							node.inElectionCycle = true;
 							
+							System.out.println("\n\nSHEPHERD APPEARS TO HAVE DIED.");
+							System.out.println("Starting election procedure.");
+							System.out.println("Please wait while we figure things out.");
 							
+							node.electionProcedure();
 						}
 						
 						// TODO: Finish this.

@@ -504,6 +504,6 @@ class CMNodeInformShepherdDeath implements PacketHandler {
 		
 		NodeMetadata sender = new NodeMetadata(parsedData);
 		
-		
+		// See if our shepherd is dead.
 	}
 }
