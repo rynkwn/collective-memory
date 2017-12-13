@@ -536,6 +536,7 @@ public class CMNode {
 		// Specifically, we'll allow this to be changed by another thread
 		// when we get InformShepherdDeath responses.
 		nominatedShepherd = findHighestPeer();
+		System.out.println("Our nominated shepherd is: " + nominatedShepherd.toString());
 		
 		// We turn this boolean on if we win the nomination. We then wait
 		// a bit longer to be sure that we're actually the ideal candidate.
@@ -567,6 +568,8 @@ public class CMNode {
 				if(nominatedShepherd.toString().equals(formatNodeIdentifierData()) &&
 						peersVotingForMe.equals(formatNodeIdentifierData())) {
 					
+					System.out.println("We won the election this round.");
+					
 					if(expectingToBeShepherd) {
 						// We've already won the election. Now it's official.
 						shepherdTest();
@@ -578,8 +581,10 @@ public class CMNode {
 						
 						// Then tell everyone that I accepted their nomination.
 						for(String peer : peers) {
-							NodeMetadata peerNode = new NodeMetadata(parseNodeIdentifierData(peer));
-							send(peerNode, electedPacket);							
+							if(! peer.equals(formatNodeIdentifierData())) {
+								NodeMetadata peerNode = new NodeMetadata(parseNodeIdentifierData(peer));
+								send(peerNode, electedPacket);
+							}							
 						}
 						
 						inElectionCycle = false;
@@ -594,7 +599,7 @@ public class CMNode {
 					// Then wait to see if people still support us. Or if
 					// someone else should be shepherd.
 					try {
-						Thread.sleep(CMNode.CM_TIME_TO_WAIT_FOR_SHEPHERD_HEARTBEAT_RESPONSE);
+						Thread.sleep(6 * CMNode.CM_TIME_TO_WAIT_FOR_SHEPHERD_HEARTBEAT_RESPONSE);
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					}
