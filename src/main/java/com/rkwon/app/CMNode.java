@@ -1395,6 +1395,16 @@ public class CMNode {
 
 		return response;
 	}
+	
+	/*
+	 * Reverses formatElectionResult()
+	 */
+	public ElectionResultData parseElectionResult(String data) {
+		Gson gson = new Gson();
+		ElectionResultData response = gson.fromJson(data, ElectionResultData.class);
+
+		return response;
+	}
 
 	/*
 	 * Produce a string which identifies this node, and how to reach this node.
@@ -1473,6 +1483,20 @@ public class CMNode {
 		}
 		
 		return sb.toString();
+	}
+	
+	/*
+	 * Formats some knowledge about an election result.
+	 */
+	public String formatElectionResult(NodeMetadata electedShepherd,
+									   boolean completed,
+									   boolean response
+									   ) {
+		ElectionResultData erd = new ElectionResultData(electedShepherd, completed, response);
+		
+		GsonBuilder builder = new GsonBuilder();
+		Gson gson = builder.create();
+		return gson.toJson(erd);
 	}
 	
 	/*
@@ -1993,6 +2017,22 @@ public class CMNode {
 								.withString(formatInformShepherdDeathMessage(nominatedShepherd, 
 																			 response
 																			 ))
+								.build();
+	}
+	
+	/*
+	 * Builds a packet to query a node if an election was concluded,
+	 * or to tell nodes that you've won an election.
+	 */
+	public Packet buildElectionResultPacket(NodeMetadata electedShepherd,
+											boolean completed,
+											boolean response
+											) {
+		return new PacketBuilder(Packet.PacketType.Request)
+								.withID(CMNode.PACKET_ELECTION_RESULT_ID)
+								.withString(formatElectionResult(electedShepherd,
+																 completed,
+																 response))
 								.build();
 	}
 

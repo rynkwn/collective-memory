@@ -510,6 +510,9 @@ class CMNodeInformShepherdDeathHandler implements PacketHandler {
 			// If we never respond... the implication is that our shepherd is alive.
 			// That other node... is suffering some awful luck.
 			
+			// Add the other node to our list of peers if they already aren't there.
+			host.addPeer(sender.toString());
+			
 			// Check if the InformShepherdDeath was a response. In which case
 			// Check to see if our node is higher priority than theirs.
 			if(data.response) {
