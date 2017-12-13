@@ -90,6 +90,10 @@ public class CMNode {
 	public static final short PACKET_PING_REQUEST_ID = 1123;
 	public static final short PACKET_PING_RESPONSE_ID = 3211;
 	
+	// Election packet ids.
+	public static final short PACKET_ELECTION_NOMINATE_REQUEST_ID = 2016;
+	public static final short PACKET_ELECTION_NOMINATE_RESPONSE_ID = 2018;
+	
 
 	////////////////////
 	//
@@ -171,6 +175,7 @@ public class CMNode {
 	// TODO: If ping responses become any more complicated, may be subject to race conditions. Careful. Or add locks.
 	public boolean waitingForPingResponse = true;
 	public boolean receivedPingResponse = false;
+	public boolean inElectionCycle = false;
 
 	// NOTES TO SELF:
 	// https://github.com/PvdBerg1998/PNet#creating-a-server
@@ -1777,6 +1782,16 @@ public class CMNode {
 								.withString(formatPingResponse(nodeId))
 								.build();
 	}
+	
+	/*
+	 * Build a packet to nominate another node for shepherd.
+	 */
+	public Packet buildShepherdNominationPacket() {
+		return new PacketBuilder(Packet.PacketType.Request)
+								.withID(CMNode.PACKET_ELECTION_NOMINATE_REQUEST_ID)
+								.withString(formatNodeIdentifierData())
+								.build();
+	}
 
 	////////////////////////////////////////////////////////
 	//
@@ -1873,7 +1888,7 @@ class Monitor implements Runnable {
 	 * acknowledge the shepherd.
 	 */
 	public void run() {
-		while(true) {			
+		while(true) {
 			if(node.isShepherd) {
 				node.receiveNewNodes();
 			} else {
@@ -1898,6 +1913,13 @@ class Monitor implements Runnable {
 						
 						// Wait for response.
 						Thread.sleep(timeToWaitForResponse);
+						
+						if(!node.receivedPingResponse) {
+							// If we don't get a ping response, assume server is dead.
+							// TODO: This may be a bit too aggressive. Should do multiple pings.
+							
+							
+						}
 						
 						// TODO: Finish this.
 						/*

@@ -469,6 +469,43 @@ class CMNodePingResponseHandler implements PacketHandler {
 			
 			host.files = files;
 			host.peers = peers;
+			host.receivedPingResponse = true;
 		}
+	}
+}
+
+/*
+ * This node has been nominated for election to become shepherd.
+ * We verify that our shepherd is dead. If we already have a shepherd
+ * or are nominating someone else, we inform the node of the new
+ * shepherd/nomination.
+ * 
+ * Otherwise, we accept the nomination.
+ * 
+ * We accept the nomination if and only if we're the node with the
+ * highest IP address that we know about.
+ */
+class CMNodeElectionNomination implements PacketHandler {
+	
+	public static final short PACKET_ID = CMNode.PACKET_ELECTION_NOMINATE_REQUEST_ID;
+	
+	// The host who's receiving the responses.
+	public CMNode host;
+	
+	public CMNodeElectionNomination(CMNode host) {
+		this.host = host;
+	}
+	
+	/*
+	 * Client c is the sender
+	 */
+	public void handlePacket(final Packet p, final Client c) throws IOException {
+		System.out.println("\n\n Receiving nomination...");
+		
+		PacketReader reader = new PacketReader(p);
+		
+		HashMap<String, String> parsedData = host.parseNodeIdentifierData(reader.readString());
+		
+		NodeMetadata sender = new NodeMetadata(parsedData);
 	}
 }
