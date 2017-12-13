@@ -475,24 +475,20 @@ class CMNodePingResponseHandler implements PacketHandler {
 }
 
 /*
- * This node has been nominated for election to become shepherd.
- * We verify that our shepherd is dead. If we already have a shepherd
- * or are nominating someone else, we inform the node of the new
- * shepherd/nomination.
+ * Inform a node that the shepherd appears to be dead.
  * 
- * Otherwise, we accept the nomination.
- * 
- * We accept the nomination if and only if we're the node with the
- * highest IP address that we know about.
+ * That node then responds with the node he/she thinks should be shepherd.
+ * If he/she already has a shepherd, she checks that the shepherd
+ * is alive, and returns that information.
  */
-class CMNodeElectionNomination implements PacketHandler {
+class CMNodeInformShepherdDeath implements PacketHandler {
 	
-	public static final short PACKET_ID = CMNode.PACKET_ELECTION_NOMINATE_REQUEST_ID;
+	public static final short PACKET_ID = CMNode.PACKET_INFORM_SHEPHERD_DEATH_REQUEST_ID;
 	
 	// The host who's receiving the responses.
 	public CMNode host;
 	
-	public CMNodeElectionNomination(CMNode host) {
+	public CMNodeInformShepherdDeath(CMNode host) {
 		this.host = host;
 	}
 	
@@ -507,5 +503,7 @@ class CMNodeElectionNomination implements PacketHandler {
 		HashMap<String, String> parsedData = host.parseNodeIdentifierData(reader.readString());
 		
 		NodeMetadata sender = new NodeMetadata(parsedData);
+		
+		
 	}
 }

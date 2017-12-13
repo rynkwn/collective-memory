@@ -2,10 +2,10 @@ package com.rkwon.app;
 
 import java.util.ArrayList;
 
+/*
+ * A data class to hold what we expect in a Ping response.
+ */
 public class PingResponse {
-	/*
-	 * A data class to hold what we expect in a Ping response.
-	 */
 
 	// TODO: There's gotta be a smarter way to do this than this. But speed is of the essence right now.
 	// This might be a bit much, but...

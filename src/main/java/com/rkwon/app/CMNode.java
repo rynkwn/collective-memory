@@ -91,8 +91,7 @@ public class CMNode {
 	public static final short PACKET_PING_RESPONSE_ID = 3211;
 	
 	// Election packet ids.
-	public static final short PACKET_ELECTION_NOMINATE_REQUEST_ID = 2016;
-	public static final short PACKET_ELECTION_NOMINATE_RESPONSE_ID = 2018;
+	public static final short PACKET_INFORM_SHEPHERD_DEATH_REQUEST_ID = 2016;
 	
 
 	////////////////////
@@ -1232,11 +1231,21 @@ public class CMNode {
 	
 	/*
 	 * Parse a data string node identifying information, and also a list of file names.
-	 * Reverses formatFileMandateHeader()
+	 * Reverses formatPingResponse()
 	 */
 	public PingResponse parsePingResponse(String data) {
 		Gson gson = new Gson();
 		PingResponse response = gson.fromJson(data, PingResponse.class);
+
+		return response;
+	}
+	
+	/*
+	 * Reverses formatInformShepherdDeathMessage()
+	 */
+	public InformShepherdDeathData parseShepherdDeathMessage(String data) {
+		Gson gson = new Gson();
+		InformShepherdDeathData response = gson.fromJson(data, InformShepherdDeathData.class);
 
 		return response;
 	}
@@ -1267,6 +1276,18 @@ public class CMNode {
 	 */
 	public String formatFileMandateHeader(NodeMetadata nm, String fileName, int nodeId) {
 		return nm.ipAddress + "\n" + nm.port + "\n" + fileName + "\n" + nodeId;
+	}
+	
+	/*
+	 * Format the relevant data when informing another node of shepherd death
+	 * and who this node believes should be the new shepherd.
+	 */
+	public String formatInformShepherdDeathMessage(NodeMetadata nominatedShepherd) {
+		NodeMetadata sender = new NodeMetadata(ipAddress, port);
+		
+		GsonBuilder builder = new GsonBuilder();
+		Gson gson = builder.create();
+		return gson.toJson(new InformShepherdDeathData(sender, nominatedShepherd));
 	}
 	
 	/*
@@ -1350,6 +1371,27 @@ public class CMNode {
 	 */
 	public boolean noShepherdNodesFound() {
 		return shepherdNodes.size() == 0;
+	}
+	
+	/*
+	 * Return the peer we know about with the lexicographically
+	 * highest IP address. This is normally for Shepherd elections.
+	 */
+	public NodeMetadata findHighestPeer() {
+		String highestIpAddress = ipAddress;
+		String highestPort = port + "";
+		
+		for(String peer : peers) {
+			HashMap<String, String> peerData = parseNodeIdentifierData(peer);
+			String peerIp = peerData.get("ipAddress");
+			
+			if(peerIp.compareTo(highestIpAddress) > 0) {
+				highestIpAddress = peerIp;
+				highestPort = peerData.get("port");
+			}
+		}
+		
+		return new NodeMetadata(highestIpAddress, Integer.parseInt(highestPort));
 	}
 	
 	/*
@@ -1786,9 +1828,9 @@ public class CMNode {
 	/*
 	 * Build a packet to nominate another node for shepherd.
 	 */
-	public Packet buildShepherdNominationPacket() {
+	public Packet buildInformShepherdDeathPacket() {
 		return new PacketBuilder(Packet.PacketType.Request)
-								.withID(CMNode.PACKET_ELECTION_NOMINATE_REQUEST_ID)
+								.withID(CMNode.PACKET_INFORM_SHEPHERD_DEATH_REQUEST_ID)
 								.withString(formatNodeIdentifierData())
 								.build();
 	}
@@ -1825,39 +1867,6 @@ public class CMNode {
 		System.out.println("\n\nBooting up workhorse...");
 		
 		me.cli();
-		
-		/*
-		// TODO: Code below is strictly for testing.
-		FileMetadata testFile = new FileMetadata("Do Androids Dream of Electric Sheep by Philip Dick.pdf", 
-				"C:\\Users\\Inanity\\collective_memory\\stored\\Do Androids Dream of Electric Sheep by Philip Dick.pdf");
-		
-		if(testFile.exists()) {
-			me.addFileMetadataToStorage(testFile);
-			System.out.println(me.storedFiles);
-			
-			while(true) {
-				try {
-					Thread.sleep(2000);
-					System.out.println("\n\n\nFlock: \n" + me.flock);
-					System.out.println("\n\nProposers: \n" + me.numProposals);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}
-			
-		} else {
-			NodeMetadata myComp = CM_HARDCODED_NODES[0];
-			me.requestFile(myComp, "Do Androids Dream of Electric Sheep by Philip Dick.pdf", false);
-			
-			try {
-				Thread.sleep(5000);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			me.propose("Do Androids Dream of Electric Sheep by Philip Dick.pdf", me.downloadLocation + File.separator + "Do Androids Dream of Electric Sheep by Philip Dick.pdf");
-		}
-		*/
 	}
 }
 
