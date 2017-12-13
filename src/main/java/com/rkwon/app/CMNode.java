@@ -539,7 +539,11 @@ public class CMNode {
 		// when we get InformShepherdDeath responses.
 		nominatedShepherd = findHighestPeer();
 		
-		while(inElectionCycle) {
+		// We turn this boolean on if we win the nomination. We then wait
+		// a bit longer to be sure that we're actually the ideal candidate.
+		boolean expectingToBeShepherd = false;
+		
+		while(inElectionCycle) {			
 			
 			// Go through all our peers, and tell them who our
 			// nominated shepherd is.
@@ -556,8 +560,45 @@ public class CMNode {
 			}
 			
 			// Then, check to see if we're shepherd.
+			if(peers.size() - peersVotingForMe.size() == 1) {
+				ArrayList<String> notVotingForMe = new ArrayList(peers);
+				notVotingForMe.removeAll(peersVotingForMe);
+				
+				// Then check that the nominated shepherd should be us, and that
+				// we're the only one not voting for us.
+				if(nominatedShepherd.toString().equals(formatNodeIdentifierData()) &&
+						peersVotingForMe.equals(formatNodeIdentifierData())) {
+					
+					if(expectingToBeShepherd) {
+						// We've already won the election. Now it's official.
+						shepherdTest();
+						
+						// Then tell everyone that I accepted their nomination.
+						for(String peer : peers) {
+							// TODO: Tell everyone I accepted.
+						}
+						
+						inElectionCycle = false;
+					}
+					
+					// Clear peersVotingForMe and update expectingToBeSheperd.
+					// We then wait a fairly long time to see if people still support us.
+					expectingToBeShepherd = true;
+					peersVotingForMe.clear();
+					
+					// Then wait to see if people still support us. Or if
+					// someone else should be shepherd.
+					try {
+						Thread.sleep(CMNode.CM_TIME_TO_WAIT_FOR_SHEPHERD_HEARTBEAT_RESPONSE);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+			}
 			
-			// Then, check to see if our nominated shepherd is shepherd.
+			// Ask our nominated shepherd if they were successful.
+			// TODO: Ask nominated shepherd on success. Note them as my shepherd if
+			// successful.
 			
 			try {
 				Thread.sleep(CMNode.CM_ELECTION_ROUND_TIME);
