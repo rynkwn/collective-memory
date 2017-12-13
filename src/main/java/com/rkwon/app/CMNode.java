@@ -660,7 +660,7 @@ public class CMNode {
 		System.out.println("No pings received back. Assume that Shepherd is dead.");
 		shepherdIsDead = true;
 		shepherdNodes.remove(myShepherd);
-		peers.remove(myShepherd.toString());
+		removePeer(myShepherd.toString());
 		myShepherd = null;
 		return false;
 	}
@@ -1048,6 +1048,7 @@ public class CMNode {
 		updateNetworkFileLocations(meAsShepherd, filesIHold, true);
 		
 		myShepherd = null;
+		isShepherd = true;
 		return true;
 	}
 	
