@@ -1053,6 +1053,11 @@ public class CMNode {
 		
 		myShepherd = null;
 		isShepherd = true;
+		
+		if(isShepherd) {
+			System.out.println("\n\nI'm a shepherd. Starting up management protocols.");
+			manageFlock();
+		}
 		return true;
 	}
 	
@@ -2122,11 +2127,6 @@ public class CMNode {
 		
 		// If not shepherd, just sit happy and occasionally get lists of available files. Probably.
 		me.monitor();
-		
-		if(me.isShepherd) {
-			System.out.println("\n\nI'm a shepherd. Starting up management protocols.");
-			me.manageFlock();
-		}
 		
 		
 		// Now, start up the normal CLI interface to request files, propose files, and such.
