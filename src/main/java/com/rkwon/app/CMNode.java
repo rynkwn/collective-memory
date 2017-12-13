@@ -549,6 +549,7 @@ public class CMNode {
 		while(inElectionCycle) {			
 			
 			System.out.println("Beginning the election round. Talking with the other nodes.");
+			System.out.println("Nominated shepherd is: " + nominatedShepherd.toString());
 			
 			// Go through all our peers, and tell them who our
 			// nominated shepherd is.
