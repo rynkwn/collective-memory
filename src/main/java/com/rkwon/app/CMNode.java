@@ -103,6 +103,7 @@ public class CMNode {
 	
 	// Election packet ids.
 	public static final short PACKET_INFORM_SHEPHERD_DEATH_REQUEST_ID = 2016;
+	public static final short PACKET_ELECTION_RESULT_ID = 2018;
 	
 
 	////////////////////

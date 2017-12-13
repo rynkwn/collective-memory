@@ -481,14 +481,14 @@ class CMNodePingResponseHandler implements PacketHandler {
  * If he/she already has a shepherd, she checks that the shepherd
  * is alive, and returns that information.
  */
-class CMNodeInformShepherdDeath implements PacketHandler {
+class CMNodeInformShepherdDeathHandler implements PacketHandler {
 	
 	public static final short PACKET_ID = CMNode.PACKET_INFORM_SHEPHERD_DEATH_REQUEST_ID;
 	
 	// The host who's receiving the responses.
 	public CMNode host;
 	
-	public CMNodeInformShepherdDeath(CMNode host) {
+	public CMNodeInformShepherdDeathHandler(CMNode host) {
 		this.host = host;
 	}
 	
@@ -544,5 +544,31 @@ class CMNodeInformShepherdDeath implements PacketHandler {
 				host.send(sender, informShepherdDeathPacket);
 			}
 		}
+	}
+}
+
+/*
+ * We trigger this when a node asks us (or tells us) about an election result.
+ */
+class CMNodeElectionResultHandler implements PacketHandler {
+	
+	public static final short PACKET_ID = CMNode.PACKET_ELECTION_RESULT_ID;
+	
+	// The host who's receiving the responses.
+	public CMNode host;
+	
+	public CMNodeElectionResultHandler(CMNode host) {
+		this.host = host;
+	}
+	
+	/*
+	 * Client c is the sender
+	 */
+	public void handlePacket(final Packet p, final Client c) throws IOException {
+		System.out.println("\n\nReceiving ping response...");
+		
+		PacketReader reader = new PacketReader(p);
+		
+		
 	}
 }
