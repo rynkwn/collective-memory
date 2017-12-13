@@ -660,8 +660,8 @@ public class CMNode {
 		System.out.println("No pings received back. Assume that Shepherd is dead.");
 		shepherdIsDead = true;
 		shepherdNodes.remove(myShepherd);
-		myShepherd = null;
 		peers.remove(myShepherd.toString());
+		myShepherd = null;
 		return false;
 	}
 	
